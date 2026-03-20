@@ -5,6 +5,7 @@
 ## Состав
 
 - `gateway/` — отдельный stack с Traefik, HTTPS, Let's Encrypt и общими middleware.
+- `postgres/` — общий PostgreSQL stack для приложений на этой VDS.
 - `observability/` — Loki, Promtail, Prometheus, Grafana, node_exporter и cAdvisor.
 - `admin/` — Portainer и Dozzle для оперативного управления и просмотра логов.
 - `uptime/` — Uptime Kuma для внешних healthchecks и мониторинга доступности.
@@ -27,6 +28,7 @@
 
    ```bash
    cp gateway/.env.example gateway/.env
+   cp postgres/.env.example postgres/.env
    cp observability/.env.example observability/.env
    cp admin/.env.example admin/.env
    cp uptime/.env.example uptime/.env
@@ -37,6 +39,7 @@
 
    ```bash
    make up-gateway
+   make up-postgres
    make up-observability
    make up-admin
    make up-uptime
@@ -126,6 +129,7 @@
 - Для данных применяются именованные volumes.
 - Для всех инфраструктурных stack'ов включён Docker log rotation через `json-file`.
 - Gateway и приложения подключаются к общей external network `proxy`.
+- Приложения и PostgreSQL подключаются к общей external network `data`.
 - Приватные сервисы общаются по внутренним сетям stack'ов.
 - Секреты не захардкожены и не хранятся в git.
 
@@ -139,6 +143,7 @@
 
 ```bash
 make up-gateway
+make up-postgres
 make up-observability
 make up-admin
 make up-uptime

@@ -33,6 +33,7 @@ cd infra
 
 ```bash
 cp gateway/.env.example gateway/.env
+cp postgres/.env.example postgres/.env
 cp observability/.env.example observability/.env
 cp admin/.env.example admin/.env
 cp uptime/.env.example uptime/.env
@@ -66,6 +67,7 @@ sudo systemctl restart docker
 
 ```bash
 make up-gateway
+make up-postgres
 make up-observability
 make up-admin
 make up-uptime
@@ -74,6 +76,7 @@ make up-uptime
 После запуска проверьте:
 
 - HTTPS на gateway;
+- доступность PostgreSQL на `127.0.0.1:<POSTGRES_HOST_PORT>` и из контейнеров по host `infra-postgres`;
 - доступность Grafana и Portainer;
 - что Traefik получил сертификаты Let's Encrypt;
 - что Prometheus видит `node-exporter`, `cadvisor` и Traefik.

@@ -7,6 +7,7 @@
 - `env/prod` и `env/stage`;
 - Docker volumes приложений;
 - volume `gateway-letsencrypt`;
+- volume `postgres-data`;
 - volumes Grafana, Prometheus, Loki и Portainer.
 
 ## Как часто
@@ -27,6 +28,7 @@
 
 ```bash
 ./scripts/backup-volumes.sh --stack gateway
+./scripts/backup-volumes.sh --stack postgres
 ./scripts/backup-volumes.sh --stack app1 prod
 ```
 

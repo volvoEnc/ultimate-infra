@@ -5,12 +5,13 @@ SHELL := /usr/bin/env bash
 APP ?=
 ENV ?=
 
-.PHONY: help up-gateway up-observability up-admin up-uptime deploy logs status init-server
+.PHONY: help up-gateway up-postgres up-observability up-admin up-uptime deploy logs status init-server
 
 help:
 	@printf '%s\n' \
 	  'Available targets:' \
 	  '  make up-gateway' \
+	  '  make up-postgres' \
 	  '  make up-observability' \
 	  '  make up-admin' \
 	  '  make up-uptime' \
@@ -21,18 +22,26 @@ help:
 
 up-gateway:
 	./scripts/create-network.sh proxy
+	./scripts/create-network.sh data
 	cd gateway && docker compose --env-file .env up -d
+
+up-postgres:
+	./scripts/create-network.sh data
+	cd postgres && docker compose --env-file .env up -d
 
 up-observability:
 	./scripts/create-network.sh proxy
+	./scripts/create-network.sh data
 	cd observability && docker compose --env-file .env up -d
 
 up-admin:
 	./scripts/create-network.sh proxy
+	./scripts/create-network.sh data
 	cd admin && docker compose --env-file .env up -d
 
 up-uptime:
 	./scripts/create-network.sh proxy
+	./scripts/create-network.sh data
 	cd uptime && docker compose --env-file .env up -d
 
 deploy:

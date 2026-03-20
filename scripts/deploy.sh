@@ -21,6 +21,8 @@ if [[ $# -ne 2 ]]; then
 fi
 
 require_command docker
+"$SCRIPT_DIR/create-network.sh" proxy
+"$SCRIPT_DIR/create-network.sh" data
 
 APP_NAME="$1"
 ENV_NAME="$2"

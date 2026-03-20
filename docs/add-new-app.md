@@ -28,6 +28,7 @@ cp deployments/app-template/.env.example deployments/app1-stage/.env
 - `APP_HOST`
 - `APP_URL`
 - `APP_PORT`
+- `DATA_NETWORK`
 
 ## 3. Создать реальный env-файл
 
@@ -50,14 +51,22 @@ chmod 600 env/prod/app1.env
 - приложение должно быть подключено к сети `proxy`;
 - Traefik labels должны ссылаться на правильный `APP_HOST` и `APP_PORT`.
 
-## 6. Задеплоить
+## 6. Если приложению нужен PostgreSQL
+
+- stack приложения должен быть подключён к external network `data`;
+- по шаблону это уже сделано через `DATA_NETWORK=data`;
+- host базы внутри контейнеров: `infra-postgres`;
+- стандартный порт: `5432`;
+- реальные `DATABASE_URL` или `PG*` переменные храните в `env/prod/*.env` или `env/stage/*.env`.
+
+## 7. Задеплоить
 
 ```bash
 ./scripts/deploy.sh app1 prod
 ./scripts/healthcheck.sh app1 prod
 ```
 
-## 7. Добавить мониторинг
+## 8. Добавить мониторинг
 
 - создайте monitor в Uptime Kuma;
 - откройте Grafana dashboards `Server Overview`, `Docker Containers`, `Traefik Overview`;

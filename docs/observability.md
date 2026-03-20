@@ -6,6 +6,7 @@
 - `Loki + Promtail` — долговременные логи и поиск.
 - `Prometheus` — метрики и alert rules.
 - `Grafana` — готовые dashboards и Explore.
+- Любой `*.json` в `observability/grafana/dashboards/` подхватывается Grafana автоматически через provisioning.
 - `node_exporter` — CPU, RAM, disk, network хоста.
 - `cAdvisor` — метрики контейнеров.
 - `Uptime Kuma` — внешняя доступность URL.
@@ -54,6 +55,17 @@
 - Requests per second
 - Error responses
 - Open connections
+
+### При проблемах PostgreSQL
+
+Откройте `PostgreSQL Overview`:
+
+- exporter scrape status
+- database size
+- active sessions
+- connected backends
+- transactions rate
+- cache hit ratio
 
 ## Alert-ready метрики
 

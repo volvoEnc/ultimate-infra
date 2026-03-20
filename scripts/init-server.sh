@@ -28,6 +28,7 @@ mkdir -p \
 chmod 700 "$ROOT_DIR/env/prod" "$ROOT_DIR/env/stage" "$ROOT_DIR/backups/env" "$ROOT_DIR/backups/volumes"
 
 "$SCRIPT_DIR/create-network.sh" proxy
+"$SCRIPT_DIR/create-network.sh" data
 
 cat <<EOF
 Server bootstrap checks completed.
@@ -43,4 +44,5 @@ Next steps:
   2. Put real application env files into env/prod and env/stage.
   3. Start gateway: make up-gateway
   4. Start observability: make up-observability
+  5. Start postgres if needed: make up-postgres
 EOF

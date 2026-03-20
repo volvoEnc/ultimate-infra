@@ -44,6 +44,7 @@ services:
       - --web.enable-lifecycle
     networks:
       - observability
+      - data
       - proxy
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
@@ -126,6 +127,9 @@ volumes:
 networks:
   observability:
     name: observability
+  data:
+    external: true
+    name: data
   proxy:
     external: true
     name: ${PROXY_NETWORK}
