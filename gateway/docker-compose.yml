@@ -51,20 +51,13 @@ services:
       - letsencrypt:/letsencrypt
     networks:
       - proxy
-    healthcheck:
-      test: ["CMD", "traefik", "healthcheck", "--ping"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
     labels:
       - traefik.enable=true
       - traefik.docker.network=${PROXY_NETWORK}
-      - traefik.http.routers.dashboard.rule=Host(`${TRAEFIK_DASHBOARD_HOST}`)
+      - traefik.http.routers.dashboard.rule=Host(`${TRAEFIK_DASHBOARD_HOST}`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))
       - traefik.http.routers.dashboard.entrypoints=websecure
       - traefik.http.routers.dashboard.middlewares=dashboard-auth@docker,dashboard-chain@file
       - traefik.http.routers.dashboard.service=api@internal
-      - traefik.http.routers.dashboard.tls=true
       - traefik.http.services.dummy-svc.loadbalancer.server.port=9999
       - traefik.http.middlewares.dashboard-auth.basicauth.users=${TRAEFIK_DASHBOARD_USERS}
     logging: *default-logging
