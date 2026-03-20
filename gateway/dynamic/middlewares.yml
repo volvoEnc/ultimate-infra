@@ -1,0 +1,43 @@
+http:
+  middlewares:
+    security-headers:
+      headers:
+        browserXssFilter: true
+        contentTypeNosniff: true
+        customFrameOptionsValue: SAMEORIGIN
+        forceSTSHeader: true
+        permissionsPolicy: "accelerometer=(), camera=(), geolocation=(), microphone=()"
+        referrerPolicy: strict-origin-when-cross-origin
+        stsIncludeSubdomains: true
+        stsPreload: true
+        stsSeconds: 31536000
+    compression:
+      compress: {}
+    default-rate-limit:
+      rateLimit:
+        average: 100
+        burst: 50
+        period: 1s
+    admin-whitelist:
+      ipAllowList:
+        sourceRange:
+          - 127.0.0.1/32
+          - 10.0.0.0/8
+          - 172.16.0.0/12
+          - 192.168.0.0/16
+    default-chain:
+      chain:
+        middlewares:
+          - security-headers
+          - compression
+          - default-rate-limit
+    dashboard-chain:
+      chain:
+        middlewares:
+          - security-headers
+          - compression
+    service-lockdown:
+      chain:
+        middlewares:
+          - security-headers
+          - admin-whitelist

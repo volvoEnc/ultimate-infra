@@ -1,0 +1,62 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+x-service-defaults: &service-defaults
+  restart: unless-stopped
+  env_file:
+    - ${APP_ENV_FILE}
+  networks:
+    - backend
+  logging: *default-logging
+
+services:
+  app:
+    <<: *service-defaults
+    image: ${APP_IMAGE}
+    container_name: ${APP_NAME}-${APP_ENV}-app
+    networks:
+      - backend
+      - proxy
+    volumes:
+      - app-data:${APP_DATA_PATH}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:${APP_PORT}${APP_HEALTHCHECK_PATH} >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${PROXY_NETWORK}
+      - traefik.http.routers.${APP_NAME}-${APP_ENV}.rule=Host(`${APP_HOST}`)
+      - traefik.http.routers.${APP_NAME}-${APP_ENV}.entrypoints=websecure
+      - traefik.http.routers.${APP_NAME}-${APP_ENV}.tls.certresolver=letsencrypt
+      - traefik.http.routers.${APP_NAME}-${APP_ENV}.tls.options=default@file
+      - traefik.http.routers.${APP_NAME}-${APP_ENV}.middlewares=default-chain@file
+      - traefik.http.services.${APP_NAME}-${APP_ENV}.loadbalancer.server.port=${APP_PORT}
+
+  worker:
+    <<: *service-defaults
+    image: ${WORKER_IMAGE}
+    container_name: ${APP_NAME}-${APP_ENV}-worker
+    command: ${WORKER_COMMAND}
+
+  cron:
+    <<: *service-defaults
+    image: ${CRON_IMAGE}
+    container_name: ${APP_NAME}-${APP_ENV}-cron
+    command: ${CRON_COMMAND}
+
+volumes:
+  app-data:
+    name: ${APP_NAME}-${APP_ENV}-data
+
+networks:
+  backend:
+    name: ${APP_NAME}-${APP_ENV}-backend
+  proxy:
+    external: true
+    name: ${PROXY_NETWORK}

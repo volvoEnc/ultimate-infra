@@ -1,0 +1,45 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  uptime-kuma:
+    image: louislam/uptime-kuma:1.23.13
+    container_name: infra-uptime-kuma
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ}
+    networks:
+      - uptime
+      - proxy
+    volumes:
+      - uptime-kuma-data:/app/data
+    healthcheck:
+      test: ["CMD", "node", "/app/extra/healthcheck.js"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${PROXY_NETWORK}
+      - traefik.http.routers.uptime-kuma.rule=Host(`${UPTIME_KUMA_HOST}`)
+      - traefik.http.routers.uptime-kuma.entrypoints=websecure
+      - traefik.http.routers.uptime-kuma.tls.certresolver=letsencrypt
+      - traefik.http.routers.uptime-kuma.tls.options=default@file
+      - traefik.http.routers.uptime-kuma.middlewares=default-chain@file
+      - traefik.http.services.uptime-kuma.loadbalancer.server.port=3001
+    logging: *default-logging
+
+volumes:
+  uptime-kuma-data:
+    name: uptime-kuma-data
+
+networks:
+  uptime:
+    name: uptime
+  proxy:
+    external: true
+    name: ${PROXY_NETWORK}

@@ -1,0 +1,7 @@
+.DS_Store
+**/.env
+env/**/*.env
+backups/
+*.tar.gz
+*.tgz
+*.zip

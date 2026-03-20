@@ -1,0 +1,69 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  portainer:
+    image: portainer/portainer-ce:2.21.1
+    container_name: infra-portainer
+    restart: unless-stopped
+    command:
+      - --http-enabled
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer-data:/data
+    networks:
+      - admin
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${PROXY_NETWORK}
+      - traefik.http.routers.portainer.rule=Host(`${PORTAINER_HOST}`)
+      - traefik.http.routers.portainer.entrypoints=websecure
+      - traefik.http.routers.portainer.tls.certresolver=letsencrypt
+      - traefik.http.routers.portainer.tls.options=default@file
+      - traefik.http.routers.portainer.middlewares=default-chain@file
+      - traefik.http.services.portainer.loadbalancer.server.port=9000
+    logging: *default-logging
+
+  dozzle:
+    image: amir20/dozzle:v8.7.5
+    container_name: infra-dozzle
+    restart: unless-stopped
+    environment:
+      DOZZLE_LEVEL: info
+      DOZZLE_NO_ANALYTICS: "true"
+      DOZZLE_TAILSIZE: "300"
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - admin
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${PROXY_NETWORK}
+      - traefik.http.routers.dozzle.rule=Host(`${DOZZLE_HOST}`)
+      - traefik.http.routers.dozzle.entrypoints=websecure
+      - traefik.http.routers.dozzle.tls.certresolver=letsencrypt
+      - traefik.http.routers.dozzle.tls.options=default@file
+      - traefik.http.routers.dozzle.middlewares=default-chain@file,dozzle-auth@docker
+      - traefik.http.services.dozzle.loadbalancer.server.port=8080
+      - traefik.http.middlewares.dozzle-auth.basicauth.users=${ADMIN_BASIC_AUTH_USERS}
+    logging: *default-logging
+
+volumes:
+  portainer-data:
+    name: admin-portainer-data
+
+networks:
+  admin:
+    name: admin
+  proxy:
+    external: true
+    name: ${PROXY_NETWORK}

@@ -1,0 +1,58 @@
+groups:
+  - name: host-alerts
+    rules:
+      - alert: HostHighCPU
+        expr: 100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: High CPU usage on host {{ $labels.instance }}
+          description: CPU usage stays above 85% for 10 minutes.
+
+      - alert: HostHighMemory
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 90
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: High memory pressure on host {{ $labels.instance }}
+          description: Memory usage stays above 90% for 10 minutes.
+
+      - alert: HostLowDisk
+        expr: (node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}) * 100 < 15
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: Low disk space on root filesystem
+          description: Root filesystem has less than 15% free space.
+
+  - name: container-alerts
+    rules:
+      - alert: ContainerRestartDetected
+        expr: changes(container_start_time_seconds{name!=""}[15m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Container restarted recently
+          description: Container {{ $labels.name }} restarted within the last 15 minutes.
+
+      - alert: ContainerHighCPU
+        expr: sum by (name) (rate(container_cpu_usage_seconds_total{name!=""}[5m])) > 1.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Container CPU usage is high
+          description: Container {{ $labels.name }} uses more than 1.5 CPU cores for 10 minutes.
+
+      - alert: TraefikUnavailable
+        expr: up{job="traefik"} == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: Traefik metrics endpoint is down
+          description: Prometheus cannot scrape Traefik for more than 5 minutes.
