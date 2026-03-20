@@ -5,3 +5,8 @@ backups/
 *.tar.gz
 *.tgz
 *.zip
+/.idea/.gitignore
+/.idea/infra.iml
+/.idea/modules.xml
+/.idea/php.xml
+/.idea/vcs.xml
