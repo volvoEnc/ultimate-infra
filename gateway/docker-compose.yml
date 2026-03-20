@@ -15,6 +15,7 @@ services:
       - --log.level=INFO
       - --accesslog=true
       - --api=true
+      - --api.dashboard=true
       - --api.insecure=false
       - --ping=true
       - --ping.entrypoint=metrics
@@ -59,11 +60,12 @@ services:
     labels:
       - traefik.enable=true
       - traefik.docker.network=${PROXY_NETWORK}
-      - traefik.http.routers.traefik.rule=Host(`${TRAEFIK_DASHBOARD_HOST}`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))
-      - traefik.http.routers.traefik.entrypoints=websecure
-      - traefik.http.routers.traefik.middlewares=dashboard-auth@docker,dashboard-chain@file
-      - traefik.http.routers.traefik.service=api@internal
-      - traefik.http.services.dashboard-dummy.loadbalancer.server.port=9999
+      - traefik.http.routers.dashboard.rule=Host(`${TRAEFIK_DASHBOARD_HOST}`)
+      - traefik.http.routers.dashboard.entrypoints=websecure
+      - traefik.http.routers.dashboard.middlewares=dashboard-auth@docker,dashboard-chain@file
+      - traefik.http.routers.dashboard.service=api@internal
+      - traefik.http.routers.dashboard.tls=true
+      - traefik.http.services.dummy-svc.loadbalancer.server.port=9999
       - traefik.http.middlewares.dashboard-auth.basicauth.users=${TRAEFIK_DASHBOARD_USERS}
     logging: *default-logging
 
