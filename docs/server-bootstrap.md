@@ -34,12 +34,20 @@ cd infra
 ```bash
 cp gateway/.env.example gateway/.env
 cp postgres/.env.example postgres/.env
+cp registry/.env.example registry/.env
 cp observability/.env.example observability/.env
 cp admin/.env.example admin/.env
 cp uptime/.env.example uptime/.env
 ```
 
 Заполните домены, логины и пароли, после чего положите реальные app env-файлы в `env/prod` и `env/stage`.
+
+Если нужен Docker Registry, заранее создайте `htpasswd`:
+
+```bash
+docker run --rm --entrypoint htpasswd httpd:2 -Bbn registry change-me > env/prod/registry.htpasswd
+chmod 600 env/prod/registry.htpasswd
+```
 
 ## 5. Docker log rotation
 
@@ -68,6 +76,7 @@ sudo systemctl restart docker
 ```bash
 make up-gateway
 make up-postgres
+make up-registry
 make up-observability
 make up-admin
 make up-uptime
@@ -77,6 +86,7 @@ make up-uptime
 
 - HTTPS на gateway;
 - доступность PostgreSQL на `127.0.0.1:<POSTGRES_HOST_PORT>` и из контейнеров по host `infra-postgres`;
+- доступность Docker Registry по `https://<REGISTRY_HOST>/v2/`;
 - доступность Grafana и Portainer;
 - что Traefik получил сертификаты Let's Encrypt;
 - что Prometheus видит `node-exporter`, `cadvisor` и Traefik.

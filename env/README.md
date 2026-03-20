@@ -9,6 +9,7 @@ env/
   prod/
     app1.env
     app2.env
+    registry.htpasswd
   stage/
     app1.env
     app2.env

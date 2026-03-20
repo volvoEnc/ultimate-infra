@@ -1,6 +1,7 @@
 .DS_Store
 **/.env
 env/**/*.env
+env/**/*.htpasswd
 backups/
 *.tar.gz
 *.tgz

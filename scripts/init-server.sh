@@ -43,6 +43,7 @@ Next steps:
   1. Copy each *.env.example to .env in the relevant stack directory.
   2. Put real application env files into env/prod and env/stage.
   3. Start gateway: make up-gateway
-  4. Start observability: make up-observability
-  5. Start postgres if needed: make up-postgres
+  4. Start postgres if needed: make up-postgres
+  5. Start registry if needed: make up-registry
+  6. Start observability: make up-observability
 EOF

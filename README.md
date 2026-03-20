@@ -6,6 +6,7 @@
 
 - `gateway/` — отдельный stack с Traefik, HTTPS, Let's Encrypt и общими middleware.
 - `postgres/` — общий PostgreSQL stack для приложений на этой VDS.
+- `registry/` — приватный Docker Registry с HTTPS через Traefik и `htpasswd` auth.
 - `observability/` — Loki, Promtail, Prometheus, Grafana, node_exporter и cAdvisor.
 - `admin/` — Portainer и Dozzle для оперативного управления и просмотра логов.
 - `uptime/` — Uptime Kuma для внешних healthchecks и мониторинга доступности.
@@ -29,17 +30,27 @@
    ```bash
    cp gateway/.env.example gateway/.env
    cp postgres/.env.example postgres/.env
+   cp registry/.env.example registry/.env
    cp observability/.env.example observability/.env
    cp admin/.env.example admin/.env
    cp uptime/.env.example uptime/.env
    ```
 
-5. Заполните реальные env-файлы приложений в `env/prod` и `env/stage`.
-6. Поднимите gateway и наблюдаемость:
+5. Если нужен приватный Registry, создайте `htpasswd` файл, например:
+
+   ```bash
+   mkdir -p env/prod
+   docker run --rm --entrypoint htpasswd httpd:2 -Bbn registry change-me > env/prod/registry.htpasswd
+   chmod 600 env/prod/registry.htpasswd
+   ```
+
+6. Заполните реальные env-файлы приложений в `env/prod` и `env/stage`.
+7. Поднимите gateway и наблюдаемость:
 
    ```bash
    make up-gateway
    make up-postgres
+   make up-registry
    make up-observability
    make up-admin
    make up-uptime
@@ -51,7 +62,7 @@
    docker compose --env-file gateway/.env -f gateway/docker-compose.yml up -d
    ```
 
-7. Скопируйте шаблон приложения:
+8. Скопируйте шаблон приложения:
 
    ```bash
    cp -R deployments/app-template deployments/app1-prod
@@ -144,6 +155,7 @@
 ```bash
 make up-gateway
 make up-postgres
+make up-registry
 make up-observability
 make up-admin
 make up-uptime
