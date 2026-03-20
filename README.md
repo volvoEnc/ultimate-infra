@@ -42,6 +42,12 @@
    make up-uptime
    ```
 
+   Если запускаете stack вручную не из его каталога, передавайте `--env-file`, например:
+
+   ```bash
+   docker compose --env-file gateway/.env -f gateway/docker-compose.yml up -d
+   ```
+
 7. Скопируйте шаблон приложения:
 
    ```bash
@@ -122,6 +128,12 @@
 - Gateway и приложения подключаются к общей external network `proxy`.
 - Приватные сервисы общаются по внутренним сетям stack'ов.
 - Секреты не захардкожены и не хранятся в git.
+
+## Traefik notes
+
+- Dashboard открывается по `https://<TRAEFIK_DASHBOARD_HOST>/dashboard/`.
+- Для первой выдачи сертификата через Cloudflare используйте `SSL/TLS: Full`; после выпуска origin-сертификата можно переключить на `Full (strict)`.
+- Если Cloudflare proxy мешает bootstrap TLS, временно включите `DNS only` для dashboard host.
 
 ## Основные команды
 

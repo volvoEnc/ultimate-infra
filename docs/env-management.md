@@ -14,6 +14,12 @@
 - stack `.env` хранит routing, image tags, пути и технические настройки;
 - real app env хранит секреты, DSN, API keys и runtime config.
 
+## Как запускать compose корректно
+
+- `make up-*`, `scripts/deploy.sh`, `scripts/restart.sh` и `scripts/logs.sh` используют stack-level `.env` автоматически.
+- Если запускаете `docker compose` вручную из корня репозитория, передавайте `--env-file <stack>/.env`.
+- Без явного `--env-file` легко поднять stack с дефолтными значениями из примеров или вообще без нужных переменных.
+
 ## Права доступа
 
 Рекомендация по умолчанию:

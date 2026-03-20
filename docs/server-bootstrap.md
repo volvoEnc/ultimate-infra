@@ -77,3 +77,10 @@ make up-uptime
 - доступность Grafana и Portainer;
 - что Traefik получил сертификаты Let's Encrypt;
 - что Prometheus видит `node-exporter`, `cadvisor` и Traefik.
+
+## 7. Cloudflare и Traefik dashboard
+
+- Dashboard Traefik открывается по `https://<TRAEFIK_DASHBOARD_HOST>/dashboard/`.
+- Если домен проксируется через Cloudflare, для bootstrap origin TLS используйте `SSL/TLS = Full`.
+- После выпуска сертификата Let's Encrypt переключите Cloudflare на `Full (strict)`.
+- Если во время bootstrap возникает `525 SSL handshake failed`, временно переведите запись dashboard host в `DNS only`, дождитесь выпуска сертификата, затем верните proxy.

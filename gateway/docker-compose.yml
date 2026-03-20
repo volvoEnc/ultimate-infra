@@ -58,6 +58,7 @@ services:
       - traefik.http.routers.dashboard.entrypoints=websecure
       - traefik.http.routers.dashboard.middlewares=dashboard-auth@docker,dashboard-chain@file
       - traefik.http.routers.dashboard.service=api@internal
+      # Docker provider can skip self-routed Traefik without an explicit service port.
       - traefik.http.services.dummy-svc.loadbalancer.server.port=9999
       - traefik.http.middlewares.dashboard-auth.basicauth.users=${TRAEFIK_DASHBOARD_USERS}
     logging: *default-logging

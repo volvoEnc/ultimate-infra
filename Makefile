@@ -21,19 +21,19 @@ help:
 
 up-gateway:
 	./scripts/create-network.sh proxy
-	cd gateway && docker compose up -d
+	cd gateway && docker compose --env-file .env up -d
 
 up-observability:
 	./scripts/create-network.sh proxy
-	cd observability && docker compose up -d
+	cd observability && docker compose --env-file .env up -d
 
 up-admin:
 	./scripts/create-network.sh proxy
-	cd admin && docker compose up -d
+	cd admin && docker compose --env-file .env up -d
 
 up-uptime:
 	./scripts/create-network.sh proxy
-	cd uptime && docker compose up -d
+	cd uptime && docker compose --env-file .env up -d
 
 deploy:
 	@test -n "$(APP)" && test -n "$(ENV)" || (echo 'Usage: make deploy APP=<name> ENV=<prod|stage>' >&2; exit 1)

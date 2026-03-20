@@ -50,7 +50,11 @@ compose_in_dir() {
 
   (
     cd "$stack_dir"
-    docker compose "$@"
+    if [[ -f .env ]]; then
+      docker compose --env-file .env "$@"
+    else
+      docker compose "$@"
+    fi
   )
 }
 
