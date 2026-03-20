@@ -171,6 +171,7 @@ make status
 - `docs/server-bootstrap.md`
 - `docs/deploy-flow.md`
 - `docs/add-new-app.md`
+- `docs/app-repo-agents-template.md`
 - `docs/env-management.md`
 - `docs/backup-restore.md`
 - `docs/observability.md`

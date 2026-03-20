@@ -10,6 +10,7 @@ services:
     container_name: infra-registry
     restart: unless-stopped
     environment:
+      OTEL_TRACES_EXPORTER: none
       REGISTRY_HTTP_ADDR: 0.0.0.0:5000
       REGISTRY_HTTP_HOST: https://${REGISTRY_HOST}
       REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY: /var/lib/registry

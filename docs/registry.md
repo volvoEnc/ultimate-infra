@@ -9,6 +9,7 @@
 - HTTPS и сертификаты выдаёт Traefik;
 - аутентификация делается самим Registry через `htpasswd`;
 - данные образов лежат в volume `registry-data`.
+- OTLP traces export в образе Registry 3 отключён явно через `OTEL_TRACES_EXPORTER=none`.
 
 ## Подготовка
 
