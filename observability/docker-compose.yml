@@ -74,8 +74,6 @@ services:
       - traefik.docker.network=${PROXY_NETWORK}
       - traefik.http.routers.grafana.rule=Host(`${GRAFANA_HOST}`)
       - traefik.http.routers.grafana.entrypoints=websecure
-      - traefik.http.routers.grafana.tls.certresolver=letsencrypt
-      - traefik.http.routers.grafana.tls.options=default@file
       - traefik.http.routers.grafana.middlewares=default-chain@file
       - traefik.http.services.grafana.loadbalancer.server.port=3000
     logging: *default-logging

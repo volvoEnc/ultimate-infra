@@ -27,8 +27,6 @@ services:
       - traefik.docker.network=${PROXY_NETWORK}
       - traefik.http.routers.uptime-kuma.rule=Host(`${UPTIME_KUMA_HOST}`)
       - traefik.http.routers.uptime-kuma.entrypoints=websecure
-      - traefik.http.routers.uptime-kuma.tls.certresolver=letsencrypt
-      - traefik.http.routers.uptime-kuma.tls.options=default@file
       - traefik.http.routers.uptime-kuma.middlewares=default-chain@file
       - traefik.http.services.uptime-kuma.loadbalancer.server.port=3001
     logging: *default-logging

@@ -24,8 +24,6 @@ services:
       - traefik.docker.network=${PROXY_NETWORK}
       - traefik.http.routers.portainer.rule=Host(`${PORTAINER_HOST}`)
       - traefik.http.routers.portainer.entrypoints=websecure
-      - traefik.http.routers.portainer.tls.certresolver=letsencrypt
-      - traefik.http.routers.portainer.tls.options=default@file
       - traefik.http.routers.portainer.middlewares=default-chain@file
       - traefik.http.services.portainer.loadbalancer.server.port=9000
     logging: *default-logging
@@ -50,8 +48,6 @@ services:
       - traefik.docker.network=${PROXY_NETWORK}
       - traefik.http.routers.dozzle.rule=Host(`${DOZZLE_HOST}`)
       - traefik.http.routers.dozzle.entrypoints=websecure
-      - traefik.http.routers.dozzle.tls.certresolver=letsencrypt
-      - traefik.http.routers.dozzle.tls.options=default@file
       - traefik.http.routers.dozzle.middlewares=default-chain@file,dozzle-auth@docker
       - traefik.http.services.dozzle.loadbalancer.server.port=8080
       - traefik.http.middlewares.dozzle-auth.basicauth.users=${ADMIN_BASIC_AUTH_USERS}

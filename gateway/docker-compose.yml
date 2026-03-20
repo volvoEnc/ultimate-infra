@@ -37,8 +37,6 @@ services:
       - traefik.docker.network=${PROXY_NETWORK}
       - traefik.http.routers.traefik.rule=Host(`${TRAEFIK_DASHBOARD_HOST}`)
       - traefik.http.routers.traefik.entrypoints=websecure
-      - traefik.http.routers.traefik.tls.certresolver=letsencrypt
-      - traefik.http.routers.traefik.tls.options=default@file
       - traefik.http.routers.traefik.middlewares=dashboard-auth@docker,dashboard-chain@file
       - traefik.http.routers.traefik.service=api@internal
       - traefik.http.middlewares.dashboard-auth.basicauth.users=${TRAEFIK_DASHBOARD_USERS}
