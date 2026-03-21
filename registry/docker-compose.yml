@@ -34,6 +34,37 @@ services:
       - traefik.http.services.registry.loadbalancer.server.port=5000
     logging: *default-logging
 
+  registry-ui:
+    image: joxit/docker-registry-ui:2.5.7
+    container_name: infra-registry-ui
+    restart: unless-stopped
+    environment:
+      SINGLE_REGISTRY: "true"
+      REGISTRY_TITLE: Docker Registry UI
+      PULL_URL: ${REGISTRY_HOST}
+      DELETE_IMAGES: "true"
+      SHOW_CONTENT_DIGEST: "true"
+      SHOW_CATALOG_NB_TAGS: "true"
+      CATALOG_MIN_BRANCHES: "1"
+      CATALOG_MAX_BRANCHES: "1"
+      TAGLIST_PAGE_SIZE: "100"
+      CATALOG_ELEMENTS_LIMIT: "1000"
+      REGISTRY_SECURED: "true"
+      NGINX_PROXY_PASS_URL: http://registry:5000
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      - registry
+    networks:
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${PROXY_NETWORK}
+      - traefik.http.routers.registry-ui.rule=Host(`${REGISTRY_UI_HOST}`)
+      - traefik.http.routers.registry-ui.entrypoints=websecure
+      - traefik.http.services.registry-ui.loadbalancer.server.port=80
+    logging: *default-logging
+
 volumes:
   registry-data:
     name: registry-data

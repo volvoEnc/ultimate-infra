@@ -10,6 +10,7 @@
 - аутентификация делается самим Registry через `htpasswd`;
 - данные образов лежат в volume `registry-data`.
 - OTLP traces export в образе Registry 3 отключён явно через `OTEL_TRACES_EXPORTER=none`.
+- браузерный UI поднимается отдельным сервисом `registry-ui`.
 
 ## Подготовка
 
@@ -30,6 +31,7 @@ chmod 600 env/prod/registry.htpasswd
 3. Проверьте `registry/.env`:
 
 - `REGISTRY_HOST` — домен registry, например `registry.example.com`;
+- `REGISTRY_UI_HOST` — отдельный домен UI, например `registry-ui.example.com`;
 - `REGISTRY_HTTP_SECRET` — длинная случайная строка;
 - `REGISTRY_AUTH_FILE` — путь к `htpasswd` файлу.
 
@@ -48,6 +50,14 @@ make up-registry
 ```bash
 docker login registry.example.com
 ```
+
+UI:
+
+```text
+https://registry-ui.example.com
+```
+
+UI использует тот же basic auth, что и сам registry.
 
 Пуш:
 
