@@ -58,6 +58,7 @@ chmod 600 env/prod/app1.env
 - host базы внутри контейнеров: `infra-postgres`;
 - стандартный порт: `5432`;
 - реальные `DATABASE_URL` или `PG*` переменные храните в `env/prod/*.env` или `env/stage/*.env`.
+- для создания отдельной базы и пользователя используйте `./scripts/create-postgres-app-db.sh <app> <prod|stage>`.
 
 ## 7. Задеплоить
 
