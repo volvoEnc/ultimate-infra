@@ -4,6 +4,8 @@
 
 `postgres/` поднимает один shared PostgreSQL instance для приложений на этой VDS.
 
+В этот же stack входит `pgAdmin` для web-управления PostgreSQL через Traefik.
+
 Рекомендуемая модель:
 
 - одна app database на одно приложение и одно окружение;
@@ -78,6 +80,44 @@ PGPASSWORD=secret
 
 - `env/prod/<app>.env`
 - `env/stage/<app>.env`
+
+## Web UI
+
+`pgAdmin` поднимается в том же stack и доступен по:
+
+`https://<PGADMIN_HOST>/`
+
+Нужные переменные лежат в `postgres/.env`:
+
+```env
+PGADMIN_HOST=pgadmin.example.com
+PGADMIN_DEFAULT_EMAIL=admin@example.com
+PGADMIN_DEFAULT_PASSWORD=change-me-now
+```
+
+После первого запуска в `pgAdmin` автоматически появится сервер `Shared PostgreSQL`, уже настроенный на контейнер `infra-postgres`.
+
+Важно:
+
+- server definitions импортируются только на первом старте `pgAdmin`, пока пуст `postgres-pgadmin-data`;
+- если меняете `POSTGRES_DB` или `POSTGRES_USER` уже после первого запуска, старую `pgAdmin` конфигурацию нужно либо поправить в UI, либо пересоздать volume `postgres-pgadmin-data`.
+
+Быстрый запуск:
+
+```bash
+cp postgres/.env.example postgres/.env
+make up-postgres
+```
+
+После входа в `pgAdmin` используйте:
+
+- email: `PGADMIN_DEFAULT_EMAIL`
+- password: `PGADMIN_DEFAULT_PASSWORD`
+
+Для подключения к конкретной app database можно:
+
+- открыть уже импортированный `Shared PostgreSQL`, если ваш `POSTGRES_USER` имеет доступ;
+- или добавить отдельный server/connection с `host=infra-postgres` и app-specific учёткой вроде `billing_prod`.
 
 ## Как это связано с infra app stack
 

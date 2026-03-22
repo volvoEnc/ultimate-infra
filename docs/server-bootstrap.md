@@ -86,6 +86,7 @@ make up-uptime
 
 - HTTPS на gateway;
 - доступность PostgreSQL на `127.0.0.1:<POSTGRES_HOST_PORT>` и из контейнеров по host `infra-postgres`;
+- доступность `pgAdmin` по `https://<PGADMIN_HOST>/`;
 - доступность Docker Registry по `https://<REGISTRY_HOST>/v2/`;
 - доступность Grafana и Portainer;
 - что Traefik получил сертификаты Let's Encrypt;

@@ -34,6 +34,37 @@ services:
       start_period: 20s
     logging: *default-logging
 
+  pgadmin:
+    image: dpage/pgadmin4:9.13
+    container_name: infra-pgadmin
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+      PGADMIN_DISABLE_POSTFIX: "1"
+      PGADMIN_SERVER_JSON_FILE: /pgadmin4/servers.json
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - postgres-pgadmin-data:/var/lib/pgadmin
+    configs:
+      - source: pgadmin-servers
+        target: /pgadmin4/servers.json
+    networks:
+      - data
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${PROXY_NETWORK}
+      - traefik.http.routers.pgadmin.rule=Host(`${PGADMIN_HOST}`)
+      - traefik.http.routers.pgadmin.entrypoints=websecure
+      - traefik.http.routers.pgadmin.middlewares=default-chain@file
+      - traefik.http.services.pgadmin.loadbalancer.server.port=80
+    logging: *default-logging
+
   postgres-exporter:
     image: quay.io/prometheuscommunity/postgres-exporter:v0.18.0
     container_name: infra-postgres-exporter
@@ -57,8 +88,30 @@ services:
 volumes:
   postgres-data:
     name: postgres-data
+  postgres-pgadmin-data:
+    name: postgres-pgadmin-data
 
 networks:
   data:
     external: true
     name: ${DATA_NETWORK}
+  proxy:
+    external: true
+    name: ${PROXY_NETWORK}
+
+configs:
+  pgadmin-servers:
+    content: |
+      {
+        "Servers": {
+          "1": {
+            "Name": "Shared PostgreSQL",
+            "Group": "Infra",
+            "Host": "infra-postgres",
+            "Port": 5432,
+            "MaintenanceDB": "${POSTGRES_DB}",
+            "Username": "${POSTGRES_USER}",
+            "SSLMode": "disable"
+          }
+        }
+      }

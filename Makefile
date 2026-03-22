@@ -28,6 +28,7 @@ up-gateway:
 
 up-postgres:
 	./scripts/create-network.sh data
+	./scripts/create-network.sh proxy
 	cd postgres && docker compose --env-file .env up -d
 
 up-registry:
