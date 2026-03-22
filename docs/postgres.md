@@ -4,7 +4,7 @@
 
 `postgres/` поднимает один shared PostgreSQL instance для приложений на этой VDS.
 
-В этот же stack входит `pgAdmin` для web-управления PostgreSQL через Traefik.
+В этот же stack входит `Adminer` для web-управления PostgreSQL через Traefik.
 
 Рекомендуемая модель:
 
@@ -83,24 +83,18 @@ PGPASSWORD=secret
 
 ## Web UI
 
-`pgAdmin` поднимается в том же stack и доступен по:
+`Adminer` поднимается в том же stack и доступен по:
 
-`https://<PGADMIN_HOST>/`
+`https://<ADMINER_HOST>/`
 
 Нужные переменные лежат в `postgres/.env`:
 
 ```env
-PGADMIN_HOST=pgadmin.example.com
-PGADMIN_DEFAULT_EMAIL=admin@example.com
-PGADMIN_DEFAULT_PASSWORD=change-me-now
+ADMINER_HOST=postgres.example.com
+ADMINER_BASIC_AUTH_USERS=admin:$$apr1$$...
 ```
 
-После первого запуска в `pgAdmin` автоматически появится сервер `Shared PostgreSQL`, уже настроенный на контейнер `infra-postgres`.
-
-Важно:
-
-- server definitions импортируются только на первом старте `pgAdmin`, пока пуст `postgres-pgadmin-data`;
-- если меняете `POSTGRES_DB` или `POSTGRES_USER` уже после первого запуска, старую `pgAdmin` конфигурацию нужно либо поправить в UI, либо пересоздать volume `postgres-pgadmin-data`.
+`Adminer` проще: он не хранит отдельный каталог server definitions и сразу открывает форму подключения к `infra-postgres`.
 
 Быстрый запуск:
 
@@ -109,15 +103,23 @@ cp postgres/.env.example postgres/.env
 make up-postgres
 ```
 
-После входа в `pgAdmin` используйте:
+После открытия UI сначала сработает HTTP Basic Auth из Traefik:
 
-- email: `PGADMIN_DEFAULT_EMAIL`
-- password: `PGADMIN_DEFAULT_PASSWORD`
+- login/password берутся из `ADMINER_BASIC_AUTH_USERS`
 
-Для подключения к конкретной app database можно:
+Дальше в форме Adminer используйте уже PostgreSQL credentials:
 
-- открыть уже импортированный `Shared PostgreSQL`, если ваш `POSTGRES_USER` имеет доступ;
-- или добавить отдельный server/connection с `host=infra-postgres` и app-specific учёткой вроде `billing_prod`.
+- System: `PostgreSQL`
+- Server: `infra-postgres`
+- Username: например `billing_prod`
+- Password: пароль пользователя БД
+- Database: например `billing_prod`
+
+Если хотите войти суперпользователем stack'а:
+
+- Username: `POSTGRES_USER`
+- Password: `POSTGRES_PASSWORD`
+- Database: `POSTGRES_DB`
 
 ## Как это связано с infra app stack
 

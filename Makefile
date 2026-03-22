@@ -29,7 +29,7 @@ up-gateway:
 up-postgres:
 	./scripts/create-network.sh data
 	./scripts/create-network.sh proxy
-	cd postgres && docker compose --env-file .env up -d
+	cd postgres && docker compose --env-file .env up -d --remove-orphans
 
 up-registry:
 	./scripts/create-network.sh proxy

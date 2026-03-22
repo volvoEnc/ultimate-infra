@@ -34,39 +34,28 @@ services:
       start_period: 20s
     logging: *default-logging
 
-  pgadmin:
-    image: dpage/pgadmin4:9.13
-    container_name: infra-pgadmin
+  adminer:
+    image: adminer:5.4.2-standalone
+    container_name: infra-adminer
     restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
     environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
-      PGADMIN_DISABLE_POSTFIX: "1"
-      PGADMIN_CONFIG_PROXY_X_HOST_COUNT: 1
-      PGADMIN_CONFIG_PROXY_X_PROTO_COUNT: 1
-      PGADMIN_CONFIG_PROXY_X_PORT_COUNT: 1
-      PGADMIN_SERVER_JSON_FILE: /pgadmin4/servers.json
+      ADMINER_DEFAULT_SERVER: infra-postgres
     security_opt:
       - no-new-privileges:true
-    volumes:
-      - postgres-pgadmin-data:/var/lib/pgadmin
-    configs:
-      - source: pgadmin-servers
-        target: /pgadmin4/servers.json
     networks:
       - data
       - proxy
     labels:
       - traefik.enable=true
       - traefik.docker.network=${PROXY_NETWORK}
-      - traefik.http.routers.pgadmin.rule=Host(`${PGADMIN_HOST}`)
-      - traefik.http.routers.pgadmin.entrypoints=websecure
-      - traefik.http.routers.pgadmin.middlewares=pgadmin-proxy-headers@docker,default-chain@file
-      - traefik.http.services.pgadmin.loadbalancer.server.port=80
-      - traefik.http.middlewares.pgadmin-proxy-headers.headers.customrequestheaders.X-Scheme=https
+      - traefik.http.routers.adminer.rule=Host(`${ADMINER_HOST}`)
+      - traefik.http.routers.adminer.entrypoints=websecure
+      - traefik.http.routers.adminer.middlewares=default-chain@file,adminer-auth@docker
+      - traefik.http.services.adminer.loadbalancer.server.port=8080
+      - traefik.http.middlewares.adminer-auth.basicauth.users=${ADMINER_BASIC_AUTH_USERS}
     logging: *default-logging
 
   postgres-exporter:
@@ -92,8 +81,6 @@ services:
 volumes:
   postgres-data:
     name: postgres-data
-  postgres-pgadmin-data:
-    name: postgres-pgadmin-data
 
 networks:
   data:
@@ -102,20 +89,3 @@ networks:
   proxy:
     external: true
     name: ${PROXY_NETWORK}
-
-configs:
-  pgadmin-servers:
-    content: |
-      {
-        "Servers": {
-          "1": {
-            "Name": "Shared PostgreSQL",
-            "Group": "Infra",
-            "Host": "infra-postgres",
-            "Port": 5432,
-            "MaintenanceDB": "${POSTGRES_DB}",
-            "Username": "${POSTGRES_USER}",
-            "SSLMode": "disable"
-          }
-        }
-      }

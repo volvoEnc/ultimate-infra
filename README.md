@@ -5,7 +5,7 @@
 ## Состав
 
 - `gateway/` — отдельный stack с Traefik, HTTPS, Let's Encrypt и общими middleware.
-- `postgres/` — общий PostgreSQL stack для приложений на этой VDS, включая `pgAdmin` web UI.
+- `postgres/` — общий PostgreSQL stack для приложений на этой VDS, включая `Adminer` web UI.
 - `registry/` — приватный Docker Registry с HTTPS через Traefik и `htpasswd` auth.
 - `observability/` — Loki, Promtail, Prometheus, Grafana, node_exporter и cAdvisor.
 - `admin/` — Portainer и Dozzle для оперативного управления и просмотра логов.
@@ -62,7 +62,7 @@
    docker compose --env-file gateway/.env -f gateway/docker-compose.yml up -d
    ```
 
-   После `make up-postgres` UI PostgreSQL будет доступен по `https://<PGADMIN_HOST>/`.
+   После `make up-postgres` UI PostgreSQL будет доступен по `https://<ADMINER_HOST>/`.
 
 8. Скопируйте шаблон приложения:
 
