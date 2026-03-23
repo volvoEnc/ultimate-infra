@@ -1,1 +1,12 @@
-{}
+{
+  "channel": {
+    "namespaces": [
+      {
+        "name": "users"
+      },
+      {
+        "name": "telegram-users"
+      }
+    ]
+  }
+}
