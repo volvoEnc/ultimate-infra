@@ -44,6 +44,8 @@ services:
       - traefik.docker.network=${PROXY_NETWORK}
       - traefik.http.routers.centrifugo.rule=Host(`${CENTRIFUGO_HOST}`)
       - traefik.http.routers.centrifugo.entrypoints=websecure
+      - traefik.http.routers.centrifugo.tls=true
+      - traefik.http.routers.centrifugo.tls.certresolver=letsencrypt
       - traefik.http.routers.centrifugo.middlewares=default-chain@file
       - traefik.http.services.centrifugo.loadbalancer.server.port=${CENTRIFUGO_EXTERNAL_PORT}
     logging: *default-logging

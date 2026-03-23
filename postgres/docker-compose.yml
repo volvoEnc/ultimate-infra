@@ -53,6 +53,8 @@ services:
       - traefik.docker.network=${PROXY_NETWORK}
       - traefik.http.routers.adminer.rule=Host(`${ADMINER_HOST}`)
       - traefik.http.routers.adminer.entrypoints=websecure
+      - traefik.http.routers.adminer.tls=true
+      - traefik.http.routers.adminer.tls.certresolver=letsencrypt
       - traefik.http.routers.adminer.middlewares=default-chain@file,adminer-auth@docker
       - traefik.http.services.adminer.loadbalancer.server.port=8080
       - traefik.http.middlewares.adminer-auth.basicauth.users=${ADMINER_BASIC_AUTH_USERS}

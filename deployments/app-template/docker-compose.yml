@@ -35,6 +35,8 @@ services:
       - traefik.docker.network=${PROXY_NETWORK}
       - traefik.http.routers.${APP_NAME}-${APP_ENV}.rule=Host(`${APP_HOST}`)
       - traefik.http.routers.${APP_NAME}-${APP_ENV}.entrypoints=websecure
+      - traefik.http.routers.${APP_NAME}-${APP_ENV}.tls=true
+      - traefik.http.routers.${APP_NAME}-${APP_ENV}.tls.certresolver=letsencrypt
       - traefik.http.routers.${APP_NAME}-${APP_ENV}.middlewares=default-chain@file
       - traefik.http.services.${APP_NAME}-${APP_ENV}.loadbalancer.server.port=${APP_PORT}
 
