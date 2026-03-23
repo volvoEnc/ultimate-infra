@@ -5,7 +5,7 @@ SHELL := /usr/bin/env bash
 APP ?=
 ENV ?=
 
-.PHONY: help up-gateway up-postgres up-registry up-observability up-admin up-uptime deploy logs status init-server
+.PHONY: help up-gateway up-postgres up-registry up-observability up-admin up-uptime up-centrifugo deploy logs status init-server
 
 help:
 	@printf '%s\n' \
@@ -16,6 +16,7 @@ help:
 	  '  make up-observability' \
 	  '  make up-admin' \
 	  '  make up-uptime' \
+	  '  make up-centrifugo' \
 	  '  make deploy APP=app1 ENV=prod' \
 	  '  make logs APP=app1 ENV=prod' \
 	  '  make status' \
@@ -49,6 +50,11 @@ up-uptime:
 	./scripts/create-network.sh proxy
 	./scripts/create-network.sh data
 	cd uptime && docker compose --env-file .env up -d
+
+up-centrifugo:
+	./scripts/create-network.sh proxy
+	./scripts/create-network.sh data
+	cd centrifugo && docker compose --env-file .env up -d --remove-orphans
 
 deploy:
 	@test -n "$(APP)" && test -n "$(ENV)" || (echo 'Usage: make deploy APP=<name> ENV=<prod|stage>' >&2; exit 1)

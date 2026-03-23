@@ -37,3 +37,8 @@ scrape_configs:
     static_configs:
       - targets:
           - infra-postgres-exporter:9187
+
+  - job_name: centrifugo
+    static_configs:
+      - targets:
+          - infra-centrifugo:8001

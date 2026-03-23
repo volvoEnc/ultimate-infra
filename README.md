@@ -10,6 +10,7 @@
 - `observability/` — Loki, Promtail, Prometheus, Grafana, node_exporter и cAdvisor.
 - `admin/` — Portainer и Dozzle для оперативного управления и просмотра логов.
 - `uptime/` — Uptime Kuma для внешних healthchecks и мониторинга доступности.
+- `centrifugo/` — Centrifugo для realtime/WebSocket, с публичным endpoint через Traefik и внутренними `/api`, `/health`, `/metrics`.
 - `deployments/app-template/` — шаблон приложения с `app`, `worker`, `cron`, `env_file`, healthcheck и Traefik labels.
 - `env/` — каталог для реальных env-файлов по окружениям, без коммита в git.
 - `scripts/` — bash-скрипты для инициализации сервера, деплоя, логов и резервных копий.
@@ -34,6 +35,7 @@
    cp observability/.env.example observability/.env
    cp admin/.env.example admin/.env
    cp uptime/.env.example uptime/.env
+   cp centrifugo/.env.example centrifugo/.env
    ```
 
 5. Если нужен приватный Registry, создайте `htpasswd` файл, например:
@@ -54,6 +56,7 @@
    make up-observability
    make up-admin
    make up-uptime
+   make up-centrifugo
    ```
 
    Если запускаете stack вручную не из его каталога, передавайте `--env-file`, например:
@@ -161,6 +164,7 @@ make up-registry
 make up-observability
 make up-admin
 make up-uptime
+make up-centrifugo
 make deploy APP=app1 ENV=prod
 make logs APP=app1 ENV=prod
 make status
@@ -178,3 +182,4 @@ make status
 - `docs/env-management.md`
 - `docs/backup-restore.md`
 - `docs/observability.md`
+- `centrifugo/README.md`

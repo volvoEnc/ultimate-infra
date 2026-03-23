@@ -1,0 +1,57 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  centrifugo:
+    image: centrifugo/centrifugo:v6.5.1
+    container_name: infra-centrifugo
+    restart: unless-stopped
+    command:
+      - centrifugo
+      - --config=/centrifugo/config.json
+    environment:
+      TZ: ${TZ}
+      CENTRIFUGO_LOG_LEVEL: "${CENTRIFUGO_LOG_LEVEL}"
+      CENTRIFUGO_CLIENT_ALLOWED_ORIGINS: "${CENTRIFUGO_CLIENT_ALLOWED_ORIGINS}"
+      CENTRIFUGO_CLIENT_TOKEN_HMAC_SECRET_KEY: "${CENTRIFUGO_CLIENT_TOKEN_HMAC_SECRET_KEY}"
+      CENTRIFUGO_HTTP_API_KEY: "${CENTRIFUGO_HTTP_API_KEY}"
+      CENTRIFUGO_HTTP_SERVER_PORT: "${CENTRIFUGO_EXTERNAL_PORT}"
+      CENTRIFUGO_HTTP_SERVER_INTERNAL_PORT: "${CENTRIFUGO_INTERNAL_PORT}"
+      CENTRIFUGO_HEALTH_ENABLED: "${CENTRIFUGO_HEALTH_ENABLED}"
+      CENTRIFUGO_PROMETHEUS_ENABLED: "${CENTRIFUGO_PROMETHEUS_ENABLED}"
+      CENTRIFUGO_HTTP_API_EXTERNAL: "false"
+      CENTRIFUGO_ADMIN_EXTERNAL: "false"
+      CENTRIFUGO_ADMIN_ENABLED: "${CENTRIFUGO_ADMIN_ENABLED}"
+      CENTRIFUGO_ADMIN_PASSWORD: "${CENTRIFUGO_ADMIN_PASSWORD:-}"
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ./config.json:/centrifugo/config.json:ro
+    networks:
+      - data
+      - proxy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:${CENTRIFUGO_INTERNAL_PORT}/health >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${PROXY_NETWORK}
+      - traefik.http.routers.centrifugo.rule=Host(`${CENTRIFUGO_HOST}`)
+      - traefik.http.routers.centrifugo.entrypoints=websecure
+      - traefik.http.routers.centrifugo.middlewares=default-chain@file
+      - traefik.http.services.centrifugo.loadbalancer.server.port=${CENTRIFUGO_EXTERNAL_PORT}
+    logging: *default-logging
+
+networks:
+  data:
+    external: true
+    name: ${DATA_NETWORK}
+  proxy:
+    external: true
+    name: ${PROXY_NETWORK}
