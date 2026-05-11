@@ -455,7 +455,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const route = $('Route Telegram Event').item.json;\nreturn [{ json: { ...route, ...$json, stateResult: $json } }];"
+        "jsCode": "const route = $('Route Telegram Event').item.json;\nif ($json.replyText) {\n  return [{ json: { ...route, ...$json, stateResult: $json } }];\n}\nreturn [{ json: { ...$json, ...route, stateResult: $json } }];"
       },
       "id": "5447d976-d342-479e-a937-f4fff2c53cd7",
       "name": "Restore Dialog State Context",
@@ -560,7 +560,8 @@
           "id": "__ELEVENLABS_HTTP_HEADER_AUTH_CREDENTIAL_ID__",
           "name": "ElevenLabs API Key"
         }
-      }
+      },
+      "continueOnFail": true
     },
     {
       "parameters": {
@@ -575,9 +576,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        3120,
+        3380,
         560
-      ]
+      ],
+      "continueOnFail": true
     },
     {
       "parameters": {
@@ -592,7 +594,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        3380,
+        3640,
         560
       ]
     },
@@ -605,7 +607,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3640,
+        3900,
         560
       ]
     },
@@ -712,7 +714,8 @@
           "id": "__ELEVENLABS_HTTP_HEADER_AUTH_CREDENTIAL_ID__",
           "name": "ElevenLabs API Key"
         }
-      }
+      },
+      "continueOnFail": true
     },
     {
       "parameters": {
@@ -727,9 +730,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        3900,
+        4160,
         820
-      ]
+      ],
+      "continueOnFail": true
     },
     {
       "parameters": {
@@ -740,7 +744,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4160,
+        4420,
         820
       ]
     },
@@ -837,7 +841,8 @@
           "id": "__ELEVENLABS_HTTP_HEADER_AUTH_CREDENTIAL_ID__",
           "name": "ElevenLabs API Key"
         }
-      }
+      },
+      "continueOnFail": true
     },
     {
       "parameters": {
@@ -848,7 +853,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4160,
+        4420,
         1080
       ]
     },
@@ -859,7 +864,13 @@
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "options": {
-          "neverError": true
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "autodetect"
+            }
+          }
         }
       },
       "id": "d5d279d6-ae32-4fb0-a2be-8831690489a6",
@@ -875,7 +886,200 @@
           "id": "__ELEVENLABS_HTTP_HEADER_AUTH_CREDENTIAL_ID__",
           "name": "ElevenLabs API Key"
         }
-      }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const source = $json;\nconst parseMaybe = (value) => {\n  if (typeof value !== 'string') return value;\n  try { return JSON.parse(value); } catch { return value; }\n};\nconst userRecord = parseMaybe(source.user_record);\nconst activeAgent = parseMaybe(source.active_agent);\nconst savedAgent = source.savedAgent ?? null;\nconst route = source.route ?? '';\nlet eventType = 'bot_reply';\nlet agentId = source.activeAgent?.id ?? savedAgent?.id ?? source.activeAgentId ?? activeAgent?.id ?? null;\n\nif (route === 'register_user') {\n  eventType = 'user_registered';\n} else if (route === 'create_agent') {\n  eventType = 'agent_created';\n} else if (['update_prompt', 'update_welcome', 'update_knowledge'].includes(route)) {\n  eventType = route.replace('update_', 'agent_') + '_updated';\n}\n\nreturn [{\n  json: {\n    ...source,\n    botEvent: {\n      userId: userRecord?.id ?? source.id ?? null,\n      agentId,\n      eventType,\n      status: 'success',\n      errorMessage: '',\n      metadata: {\n        route,\n        updateKind: source.updateKind ?? '',\n        telegramUserId: source.telegramUserId ?? source.telegram_user_id ?? null,\n        hasReplyMarkup: Boolean(source.replyMarkup),\n      },\n    },\n  },\n}];"
+      },
+      "id": "516f6f98-472f-43a2-8023-97bc9bd08d3e",
+      "name": "Build Bot Event Log",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3900,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO bot_events (\n  user_id,\n  agent_id,\n  event_type,\n  status,\n  error_message,\n  metadata\n)\nVALUES (\n  NULLIF($1, '')::bigint,\n  NULLIF($2, '')::bigint,\n  $3,\n  $4,\n  NULLIF($5, ''),\n  $6::jsonb\n)\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [$json.botEvent.userId || '', $json.botEvent.agentId || '', $json.botEvent.eventType, $json.botEvent.status, $json.botEvent.errorMessage || '', JSON.stringify($json.botEvent.metadata || {})] }}"
+        }
+      },
+      "id": "b4d01a6d-cacf-470e-88ef-10929d6290f5",
+      "name": "Log Bot Event",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4160,
+        120
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const cleanup = $('Prepare Old Knowledge Deletion').item.json;\nconst parseMaybe = (value) => {\n  if (typeof value !== 'string') return value;\n  try { return JSON.parse(value); } catch { return value; }\n};\nconst userRecord = parseMaybe(cleanup.user_record);\nconst statusCode = Number($json.statusCode ?? ($json.error ? 500 : 200));\n\nif (statusCode < 400 && !$json.error) {\n  return [];\n}\n\nconst message = $json.error\n  ? ($json.error.message ?? $json.error.description ?? 'Cleanup request failed')\n  : (typeof $json.body === 'string' ? $json.body : ($json.statusMessage ?? 'Cleanup request failed'));\n\nreturn [{\n  json: {\n    ...cleanup,\n    botEvent: {\n      userId: userRecord?.id ?? null,\n      agentId: cleanup.activeAgent?.id ?? null,\n      eventType: 'delete_old_knowledge_document_failed',\n      status: 'error',\n      errorMessage: String(message ?? 'Unknown cleanup error').slice(0, 1000),\n      metadata: {\n        oldKnowledgeDocumentId: cleanup.oldKnowledgeDocumentId,\n        newKnowledgeDocumentId: cleanup.newKnowledgeDocumentId,\n        statusCode,\n      },\n    },\n  },\n}];"
+      },
+      "id": "c86d3271-73db-496e-8801-7fdbab2d6a04",
+      "name": "Build Cleanup Failure Event Log",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4680,
+        1080
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const source = $('Prepare Reserved Agent Create').item.json;\nif (!$json.error) {\n  return [];\n}\n\nconst parseMaybe = (value) => {\n  if (typeof value !== 'string') return value;\n  try { return JSON.parse(value); } catch { return value; }\n};\nconst userRecord = parseMaybe(source.user_record);\nconst activeAgent = source.activeAgent ?? parseMaybe(source.active_agent);\nconst message = typeof $json.error === 'string'\n  ? $json.error\n  : ($json.error?.message ?? $json.error?.description ?? 'Operation failed');\n\nreturn [{\n  json: {\n    ...source,\n    replyText: 'Не получилось выполнить действие. Попробуйте позже.',\n    replyMarkup: null,\n    nextState: 'idle',\n    botEvent: {\n      userId: userRecord?.id ?? source.id ?? null,\n      agentId: activeAgent?.id ?? source.activeAgentId ?? null,\n      eventType: 'create_agent_failed',\n      status: 'error',\n      errorMessage: String(message ?? 'Unknown error').slice(0, 1000),\n      metadata: {\n        route: source.route ?? '',\n        updateKind: source.updateKind ?? '',\n        failedNode: 'Create ElevenLabs Agent',\n        missingExpectedRow: false,\n      },\n    },\n  },\n}];"
+      },
+      "id": "f98dbdc6-4c38-4ee5-864d-d57afb6cad14",
+      "name": "Filter Create Agent Failure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3120,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const source = $('Prepare Reserved Agent Create').item.json;\nif (!$json.error && $json.id && $json.telegramUserId) {\n  return [];\n}\n\nconst parseMaybe = (value) => {\n  if (typeof value !== 'string') return value;\n  try { return JSON.parse(value); } catch { return value; }\n};\nconst userRecord = parseMaybe(source.user_record);\nconst activeAgent = source.activeAgent ?? parseMaybe(source.active_agent);\nconst message = $json.error\n  ? (typeof $json.error === 'string' ? $json.error : ($json.error?.message ?? $json.error?.description ?? 'Operation failed'))\n  : 'Operation did not return the expected saved row.';\n\nreturn [{\n  json: {\n    ...source,\n    replyText: 'Не получилось выполнить действие. Попробуйте позже.',\n    replyMarkup: null,\n    nextState: 'idle',\n    botEvent: {\n      userId: userRecord?.id ?? source.id ?? null,\n      agentId: activeAgent?.id ?? source.activeAgentId ?? null,\n      eventType: 'save_created_agent_failed',\n      status: 'error',\n      errorMessage: String(message ?? 'Unknown error').slice(0, 1000),\n      metadata: {\n        route: source.route ?? '',\n        updateKind: source.updateKind ?? '',\n        failedNode: 'Save Created Agent',\n        missingExpectedRow: !$json.error,\n      },\n    },\n  },\n}];"
+      },
+      "id": "f1b9f5a0-9d1a-426b-823d-076f86430789",
+      "name": "Filter Save Created Agent Failure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3380,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const source = $('Build Knowledge Document Request').item.json;\nif (!$json.error) {\n  return [];\n}\n\nconst parseMaybe = (value) => {\n  if (typeof value !== 'string') return value;\n  try { return JSON.parse(value); } catch { return value; }\n};\nconst userRecord = parseMaybe(source.user_record);\nconst activeAgent = source.activeAgent ?? parseMaybe(source.active_agent);\nconst message = typeof $json.error === 'string'\n  ? $json.error\n  : ($json.error?.message ?? $json.error?.description ?? 'Operation failed');\n\nreturn [{\n  json: {\n    ...source,\n    replyText: 'Не получилось выполнить действие. Попробуйте позже.',\n    replyMarkup: null,\n    nextState: 'idle',\n    botEvent: {\n      userId: userRecord?.id ?? source.id ?? null,\n      agentId: activeAgent?.id ?? source.activeAgentId ?? null,\n      eventType: 'create_knowledge_document_failed',\n      status: 'error',\n      errorMessage: String(message ?? 'Unknown error').slice(0, 1000),\n      metadata: {\n        route: source.route ?? '',\n        updateKind: source.updateKind ?? '',\n        failedNode: 'Create Knowledge Document',\n        missingExpectedRow: false,\n      },\n    },\n  },\n}];"
+      },
+      "id": "dd079f5c-3881-4115-9e99-a1e09fbbef3",
+      "name": "Filter Create Knowledge Failure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3380,
+        1180
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const source = $('Build ElevenLabs Patch').item.json;\nif (!$json.error) {\n  return [];\n}\n\nconst parseMaybe = (value) => {\n  if (typeof value !== 'string') return value;\n  try { return JSON.parse(value); } catch { return value; }\n};\nconst userRecord = parseMaybe(source.user_record);\nconst activeAgent = source.activeAgent ?? parseMaybe(source.active_agent);\nconst message = typeof $json.error === 'string'\n  ? $json.error\n  : ($json.error?.message ?? $json.error?.description ?? 'Operation failed');\n\nreturn [{\n  json: {\n    ...source,\n    replyText: 'Не получилось выполнить действие. Попробуйте позже.',\n    replyMarkup: null,\n    nextState: 'idle',\n    botEvent: {\n      userId: userRecord?.id ?? source.id ?? null,\n      agentId: activeAgent?.id ?? source.activeAgentId ?? null,\n      eventType: 'patch_agent_failed',\n      status: 'error',\n      errorMessage: String(message ?? 'Unknown error').slice(0, 1000),\n      metadata: {\n        route: source.route ?? '',\n        updateKind: source.updateKind ?? '',\n        failedNode: 'Patch ElevenLabs Agent',\n        missingExpectedRow: false,\n      },\n    },\n  },\n}];"
+      },
+      "id": "166b8f2f-ab38-498e-98f8-f6916c3e44d1",
+      "name": "Filter Patch Agent Failure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3900,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const source = $('Build ElevenLabs Patch').item.json;\nif (!$json.error && $json.id && $json.telegramUserId) {\n  return [];\n}\n\nconst parseMaybe = (value) => {\n  if (typeof value !== 'string') return value;\n  try { return JSON.parse(value); } catch { return value; }\n};\nconst userRecord = parseMaybe(source.user_record);\nconst activeAgent = source.activeAgent ?? parseMaybe(source.active_agent);\nconst message = $json.error\n  ? (typeof $json.error === 'string' ? $json.error : ($json.error?.message ?? $json.error?.description ?? 'Operation failed'))\n  : 'Operation did not return the expected saved row.';\n\nreturn [{\n  json: {\n    ...source,\n    replyText: 'Не получилось выполнить действие. Попробуйте позже.',\n    replyMarkup: null,\n    nextState: 'idle',\n    botEvent: {\n      userId: userRecord?.id ?? source.id ?? null,\n      agentId: activeAgent?.id ?? source.activeAgentId ?? null,\n      eventType: 'save_agent_update_failed',\n      status: 'error',\n      errorMessage: String(message ?? 'Unknown error').slice(0, 1000),\n      metadata: {\n        route: source.route ?? '',\n        updateKind: source.updateKind ?? '',\n        failedNode: 'Save Agent Update',\n        missingExpectedRow: !$json.error,\n      },\n    },\n  },\n}];"
+      },
+      "id": "406ac6d8-c463-48fa-b2f0-d1c843c3eed1",
+      "name": "Filter Save Agent Update Failure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4160,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "if ($json.error || !$json.agent_id) {\n  return [];\n}\nreturn [{ json: $json }];"
+      },
+      "id": "ec2046fb-845f-4ef7-8ca8-128227cedbbe",
+      "name": "Filter Create Agent Success",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3120,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "if ($json.error || !$json.id || !$json.telegramUserId) {\n  return [];\n}\nreturn [{ json: $json }];"
+      },
+      "id": "d239d742-5c1d-4d41-b36f-ff9b84fa7e4b",
+      "name": "Filter Save Created Agent Success",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3380,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "if ($json.error || !$json.id) {\n  return [];\n}\nreturn [{ json: $json }];"
+      },
+      "id": "c638b29b-b77c-4f70-972e-3c51ffbd2365",
+      "name": "Filter Create Knowledge Success",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3380,
+        980
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "if ($json.error || !$json.conversation_config) {\n  return [];\n}\nreturn [{ json: $json }];"
+      },
+      "id": "0b903fa4-b5e9-4b69-acb7-e58c2f1cd029",
+      "name": "Filter Patch Agent Success",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3900,
+        820
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "if ($json.error || !$json.id || !$json.telegramUserId) {\n  return [];\n}\nreturn [{ json: $json }];"
+      },
+      "id": "e23c74a4-4f26-4183-8796-e223384b6ff3",
+      "name": "Filter Save Agent Update Success",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4160,
+        820
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE telegram_users\nSET\n  dialog_state = 'idle',\n  updated_at = now()\nWHERE telegram_user_id = $1\nRETURNING telegram_user_id;",
+        "options": {
+          "queryReplacement": "={{ $json.telegramUserId || $json.telegram_user_id }}"
+        }
+      },
+      "id": "eaaaf62e-5d51-4625-b5c8-33757d9fe8ac",
+      "name": "Reset Dialog State After Failure",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4420,
+        640
+      ],
+      "continueOnFail": true
     }
   ],
   "connections": {
@@ -1088,6 +1292,11 @@
             "node": "Build Telegram Keyboard Request",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Build Bot Event Log",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -1148,6 +1357,11 @@
             "node": "Build Telegram Plain Reply",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Build Bot Event Log",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -1167,7 +1381,12 @@
       "main": [
         [
           {
-            "node": "Save Created Agent",
+            "node": "Filter Create Agent Success",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Filter Create Agent Failure",
             "type": "main",
             "index": 0
           }
@@ -1178,7 +1397,12 @@
       "main": [
         [
           {
-            "node": "Refresh User Context After Agent Create",
+            "node": "Filter Save Created Agent Success",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Filter Save Created Agent Failure",
             "type": "main",
             "index": 0
           }
@@ -1206,6 +1430,11 @@
           },
           {
             "node": "Build Telegram Keyboard Request",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build Bot Event Log",
             "type": "main",
             "index": 0
           }
@@ -1281,7 +1510,12 @@
       "main": [
         [
           {
-            "node": "Save Agent Update",
+            "node": "Filter Patch Agent Success",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Filter Patch Agent Failure",
             "type": "main",
             "index": 0
           }
@@ -1292,12 +1526,12 @@
       "main": [
         [
           {
-            "node": "Build Agent Update Reply",
+            "node": "Filter Save Agent Update Success",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Prepare Old Knowledge Deletion",
+            "node": "Filter Save Agent Update Failure",
             "type": "main",
             "index": 0
           }
@@ -1314,6 +1548,11 @@
           },
           {
             "node": "Build Telegram Keyboard Request",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build Bot Event Log",
             "type": "main",
             "index": 0
           }
@@ -1384,7 +1623,12 @@
       "main": [
         [
           {
-            "node": "Build ElevenLabs Patch",
+            "node": "Filter Create Knowledge Success",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Filter Create Knowledge Failure",
             "type": "main",
             "index": 0
           }
@@ -1400,6 +1644,209 @@
             "index": 0
           }
         ]
+      ]
+    },
+    "Build Bot Event Log": {
+      "main": [
+        [
+          {
+            "node": "Log Bot Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Old Knowledge Document": {
+      "main": [
+        [
+          {
+            "node": "Build Cleanup Failure Event Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Cleanup Failure Event Log": {
+      "main": [
+        [
+          {
+            "node": "Log Bot Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Create Agent Failure": {
+      "main": [
+        [
+          {
+            "node": "Log Bot Event",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Reset Dialog State After Failure",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build Telegram Plain Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Save Created Agent Failure": {
+      "main": [
+        [
+          {
+            "node": "Log Bot Event",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Reset Dialog State After Failure",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build Telegram Plain Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Create Knowledge Failure": {
+      "main": [
+        [
+          {
+            "node": "Log Bot Event",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Reset Dialog State After Failure",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build Telegram Plain Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Patch Agent Failure": {
+      "main": [
+        [
+          {
+            "node": "Log Bot Event",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Reset Dialog State After Failure",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build Telegram Plain Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Save Agent Update Failure": {
+      "main": [
+        [
+          {
+            "node": "Log Bot Event",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Reset Dialog State After Failure",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build Telegram Plain Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Create Agent Success": {
+      "main": [
+        [
+          {
+            "node": "Save Created Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Save Created Agent Success": {
+      "main": [
+        [
+          {
+            "node": "Refresh User Context After Agent Create",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Create Knowledge Success": {
+      "main": [
+        [
+          {
+            "node": "Build ElevenLabs Patch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Patch Agent Success": {
+      "main": [
+        [
+          {
+            "node": "Save Agent Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Save Agent Update Success": {
+      "main": [
+        [
+          {
+            "node": "Build Agent Update Reply",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare Old Knowledge Deletion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reset Dialog State After Failure": {
+      "main": [
+        []
       ]
     }
   },

@@ -57,8 +57,12 @@ required_nodes=(
   "Reserve Agent Slot"
   "Build Agent Limit Reply"
   "Prepare Reserved Agent Create"
+  "Filter Create Agent Success"
+  "Filter Create Agent Failure"
   "Create ElevenLabs Agent"
+  "Filter Save Created Agent Success"
   "Save Created Agent"
+  "Filter Save Created Agent Failure"
   "Refresh User Context After Agent Create"
   "Build Created Agent Reply"
   "Validate Agent Update Ownership"
@@ -68,12 +72,21 @@ required_nodes=(
   "Filter Direct Agent Patch"
   "Build Knowledge Document Request"
   "Create Knowledge Document"
+  "Filter Create Knowledge Success"
+  "Filter Create Knowledge Failure"
   "Build ElevenLabs Patch"
   "Patch ElevenLabs Agent"
+  "Filter Patch Agent Success"
+  "Filter Patch Agent Failure"
   "Save Agent Update"
+  "Filter Save Agent Update Success"
+  "Filter Save Agent Update Failure"
+  "Reset Dialog State After Failure"
   "Build Agent Update Reply"
   "Prepare Old Knowledge Deletion"
   "Delete Old Knowledge Document"
+  "Build Cleanup Failure Event Log"
+  "Build Bot Event Log"
   "Log Bot Event"
   "Answer Callback Query"
   "Reply in Telegram"
@@ -106,10 +119,25 @@ jq -e '.nodes[] | select(.name == "Create Knowledge Document") | .parameters.gen
 jq -e '.nodes[] | select(.name == "Build ElevenLabs Patch") | .parameters.jsCode | contains("knowledge_base") and contains("usage_mode")' "$WORKFLOW_PATH" >/dev/null
 jq -e '.nodes[] | select(.name == "Save Agent Update") | .parameters.query | contains("knowledge_document_id")' "$WORKFLOW_PATH" >/dev/null
 jq -e '.nodes[] | select(.name == "Delete Old Knowledge Document") | .parameters.method == "DELETE"' "$WORKFLOW_PATH" >/dev/null
-jq -e '.nodes[] | select(.name == "Delete Old Knowledge Document") | .parameters.options.neverError == true' "$WORKFLOW_PATH" >/dev/null
+jq -e '.nodes[] | select(.name == "Delete Old Knowledge Document") | .parameters.options.response.response.neverError == true' "$WORKFLOW_PATH" >/dev/null
 if jq -e '.nodes[] | select(.name == "Delete Old Knowledge Document") | .parameters.url | contains("force=true")' "$WORKFLOW_PATH" >/dev/null; then
   echo "Old knowledge document cleanup must not force-delete shared documents." >&2
   exit 1
 fi
+jq -e '.nodes[] | select(.name == "Log Bot Event") | .parameters.query | contains("INSERT INTO bot_events")' "$WORKFLOW_PATH" >/dev/null
+jq -e '.nodes[] | select(.name == "Log Bot Event") | .continueOnFail == true' "$WORKFLOW_PATH" >/dev/null
+jq -e '.nodes[] | select(.name == "Create ElevenLabs Agent") | .continueOnFail == true' "$WORKFLOW_PATH" >/dev/null
+jq -e '.nodes[] | select(.name == "Patch ElevenLabs Agent") | .continueOnFail == true' "$WORKFLOW_PATH" >/dev/null
+jq -e '.nodes[] | select(.name == "Create Knowledge Document") | .continueOnFail == true' "$WORKFLOW_PATH" >/dev/null
+jq -e '.nodes[] | select(.name == "Save Agent Update") | .continueOnFail == true' "$WORKFLOW_PATH" >/dev/null
+jq -e '.nodes[] | select(.name == "Delete Old Knowledge Document") | .continueOnFail == true' "$WORKFLOW_PATH" >/dev/null
+jq -e '.nodes[] | select(.name == "Filter Patch Agent Success") | .parameters.jsCode | contains("$json.error")' "$WORKFLOW_PATH" >/dev/null
+jq -e '.connections["Patch ElevenLabs Agent"].main[0] | map(.node) | index("Save Agent Update") | not' "$WORKFLOW_PATH" >/dev/null
+jq -e '.connections["Save Agent Update"].main[0] | map(.node) | index("Prepare Old Knowledge Deletion") | not' "$WORKFLOW_PATH" >/dev/null
+jq -e '.nodes[] | select(.name == "Filter Create Agent Success") | .parameters.jsCode | contains("agent_id")' "$WORKFLOW_PATH" >/dev/null
+jq -e '.nodes[] | select(.name == "Filter Save Agent Update Success") | .parameters.jsCode | contains("telegramUserId")' "$WORKFLOW_PATH" >/dev/null
+jq -e '.connections["Filter Patch Agent Failure"].main[0] | map(.node) | index("Set Dialog State") | not' "$WORKFLOW_PATH" >/dev/null
+jq -e '.connections["Filter Patch Agent Failure"].main[0] | map(.node) | index("Build Telegram Plain Reply")' "$WORKFLOW_PATH" >/dev/null
+jq -e '.nodes[] | select(.name == "Filter Save Agent Update Failure") | .parameters.jsCode | contains("missingExpectedRow")' "$WORKFLOW_PATH" >/dev/null
 
 echo "Telegram ElevenLabs workflow validation passed."
