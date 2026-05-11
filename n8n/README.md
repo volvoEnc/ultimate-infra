@@ -56,6 +56,26 @@ Open `https://<N8N_HOST>/` and complete n8n owner setup.
 ./scripts/restart.sh n8n
 ```
 
+## Workflow smoke import
+
+The `workflows/` directory is mounted into the container as `/workflows`.
+
+Import the committed smoke workflow:
+
+```bash
+./scripts/import-n8n-workflows.sh
+```
+
+Open n8n and check that `Smoke Test From Git` exists. Run it manually; the last node should return `smoke=true` and `source=git`.
+
+Export current workflows for inspection:
+
+```bash
+./scripts/export-n8n-workflows.sh
+```
+
+Exports go to `n8n/workflows-exported/`, which is ignored by git.
+
 ## Backup
 
 Back up the Docker volume:

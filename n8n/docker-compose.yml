@@ -33,6 +33,7 @@ services:
       - no-new-privileges:true
     volumes:
       - n8n-data:/home/node/.n8n
+      - ./workflows:/workflows:ro
     networks:
       data:
         aliases:
