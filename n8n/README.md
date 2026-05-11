@@ -68,6 +68,8 @@ make import-n8n-workflows
 
 The import command starts n8n if needed, waits for the container healthcheck, imports each JSON file from `n8n/workflows/` explicitly, and restarts n8n so the running instance sees the imported workflows.
 
+Workflow JSON files committed for CLI import must include a stable top-level `id`. n8n uses that ID to create or update the workflow record during import.
+
 To import a single workflow:
 
 ```bash
