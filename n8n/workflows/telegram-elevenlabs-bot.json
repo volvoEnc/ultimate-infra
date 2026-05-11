@@ -455,7 +455,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const route = $('Route Telegram Event').item.json;\nreturn [{ json: { ...route, stateResult: $json } }];"
+        "jsCode": "const route = $('Route Telegram Event').item.json;\nreturn [{ json: { ...route, ...$json, stateResult: $json } }];"
       },
       "id": "5447d976-d342-479e-a937-f4fff2c53cd7",
       "name": "Restore Dialog State Context",
@@ -651,6 +651,141 @@
         2600,
         560
       ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ 'https://api.elevenlabs.io/v1/convai/agents/' + $json.activeAgent.elevenlabs_agent_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "51d166c6-6da3-4aa5-9d5d-73858ed2af91",
+      "name": "Get ElevenLabs Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2600,
+        820
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__ELEVENLABS_HTTP_HEADER_AUTH_CREDENTIAL_ID__",
+          "name": "ElevenLabs API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const route = $('Restore Validated Agent Update Context').item.json;\nconst activeAgent = route.activeAgent;\nconst currentConfig = structuredClone($json.conversation_config ?? {});\ncurrentConfig.agent = currentConfig.agent ?? {};\n\nconst routeToKind = {\n  update_prompt: 'prompt',\n  update_welcome: 'welcome',\n};\nconst updateKind = routeToKind[route.route];\nconst newText = String(route.newText ?? '').trim();\n\nif (!updateKind) {\n  throw new Error(`Unsupported ElevenLabs patch route: ${route.route}`);\n}\n\nif (!activeAgent?.id || !activeAgent.elevenlabs_agent_id) {\n  throw new Error('Cannot update ElevenLabs agent without an active user-owned agent.');\n}\n\nif (!newText) {\n  throw new Error('Cannot update ElevenLabs agent with empty text.');\n}\n\nif (updateKind === 'prompt') {\n  currentConfig.agent.prompt = {\n    ...(currentConfig.agent.prompt ?? {}),\n    prompt: newText,\n  };\n} else {\n  currentConfig.agent.first_message = newText;\n}\n\nconst elevenLabsPatchBody = {\n  conversation_config: currentConfig,\n};\n\nreturn [{\n  json: {\n    ...route,\n    activeAgent,\n    updateKind,\n    newText,\n    elevenLabsPatchBody,\n  },\n}];"
+      },
+      "id": "c15233d4-fcd0-4186-8c98-0aabf864d30a",
+      "name": "Build ElevenLabs Patch",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2860,
+        820
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ 'https://api.elevenlabs.io/v1/convai/agents/' + $json.activeAgent.elevenlabs_agent_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.elevenLabsPatchBody) }}",
+        "options": {}
+      },
+      "id": "7cfe2673-950d-4a95-bc54-063549ce7010",
+      "name": "Patch ElevenLabs Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3120,
+        820
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__ELEVENLABS_HTTP_HEADER_AUTH_CREDENTIAL_ID__",
+          "name": "ElevenLabs API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH bot_user AS (\n  SELECT id, telegram_user_id\n  FROM telegram_users\n  WHERE telegram_user_id = $1\n),\nupdated_agent AS (\n  UPDATE elevenlabs_agents\n  SET\n    prompt_text = CASE WHEN $4 = 'prompt' THEN $3 ELSE prompt_text END,\n    welcome_text = CASE WHEN $4 = 'welcome' THEN $3 ELSE welcome_text END,\n    updated_at = now()\n  WHERE id = $2::bigint\n    AND user_id = (SELECT id FROM bot_user)\n    AND status = 'active'\n  RETURNING *\n),\nupdated_user AS (\n  UPDATE telegram_users\n  SET\n    dialog_state = 'idle',\n    updated_at = now()\n  WHERE id = (SELECT id FROM bot_user)\n    AND EXISTS (SELECT 1 FROM updated_agent)\n  RETURNING telegram_user_id\n)\nSELECT\n  updated_agent.*,\n  (SELECT telegram_user_id FROM updated_user) AS \"telegramUserId\"\nFROM updated_agent;",
+        "options": {
+          "queryReplacement": "={{ [$('Build ElevenLabs Patch').item.json.telegramUserId, $('Build ElevenLabs Patch').item.json.activeAgent.id, $('Build ElevenLabs Patch').item.json.newText, $('Build ElevenLabs Patch').item.json.updateKind] }}"
+        }
+      },
+      "id": "61830577-43fe-44d3-983d-56ba6b590894",
+      "name": "Save Agent Update",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3380,
+        820
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const route = $('Build ElevenLabs Patch').item.json;\nconst saved = $('Save Agent Update').item.json;\n\nif (!saved?.id) {\n  throw new Error('Updated ElevenLabs agent was not saved locally for the current Telegram user.');\n}\n\nconst button = (text, data) => ({ text, callback_data: data });\nconst actionsKeyboard = () => ({\n  inline_keyboard: [\n    [button('Изменить prompt', 'ag:p')],\n    [button('Изменить приветствие', 'ag:w')],\n    [button('Обновить knowledge', 'ag:k')],\n    [button('Список агентов', 'ag:list')],\n  ],\n});\n\nconst label = route.updateKind === 'prompt' ? 'Prompt' : 'Приветствие';\n\nreturn [{\n  json: {\n    ...route,\n    savedAgent: saved,\n    replyText: `${label} обновлен.`,\n    replyMarkup: actionsKeyboard(),\n  },\n}];"
+      },
+      "id": "3680e72a-a173-49bf-ab63-e8ec1c999b92",
+      "name": "Build Agent Update Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3640,
+        820
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH bot_user AS (\n  SELECT id, telegram_user_id\n  FROM telegram_users\n  WHERE telegram_user_id = $1\n),\nlocked_agent AS (\n  SELECT a.*\n  FROM elevenlabs_agents a\n  WHERE a.id = $2::bigint\n    AND a.user_id = (SELECT id FROM bot_user)\n    AND a.status = 'active'\n  FOR UPDATE\n)\nSELECT\n  COALESCE((SELECT to_jsonb(locked_agent) FROM locked_agent), 'null'::jsonb) AS validated_agent,\n  (SELECT telegram_user_id FROM bot_user) AS \"telegramUserId\";",
+        "options": {
+          "queryReplacement": "={{ [$json.telegramUserId, (typeof $json.active_agent === 'string' ? JSON.parse($json.active_agent) : $json.active_agent).id] }}"
+        }
+      },
+      "id": "3ef5d31d-985b-4c59-9fe6-69d860321466",
+      "name": "Validate Agent Update Ownership",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2080,
+        820
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const route = $('Route Telegram Event').item.json;\nconst lockedAgent = typeof $json.validated_agent === 'string' ? JSON.parse($json.validated_agent) : $json.validated_agent;\n\nif (!lockedAgent?.id || !lockedAgent.elevenlabs_agent_id) {\n  return [];\n}\n\nreturn [{\n  json: {\n    ...route,\n    activeAgent: {\n      id: lockedAgent.id,\n      elevenlabs_agent_id: lockedAgent.elevenlabs_agent_id,\n      display_name: lockedAgent.display_name,\n      knowledge_document_id: lockedAgent.knowledge_document_id,\n      prompt_text: lockedAgent.prompt_text,\n      welcome_text: lockedAgent.welcome_text,\n      status: lockedAgent.status,\n    },\n  },\n}];"
+      },
+      "id": "bd1c44bd-73ac-4916-85c4-0787789510ec",
+      "name": "Restore Validated Agent Update Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2340,
+        940
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const route = $('Route Telegram Event').item.json;\nconst validatedAgent = typeof $json.validated_agent === 'string' ? JSON.parse($json.validated_agent) : $json.validated_agent;\n\nif (validatedAgent?.id) {\n  return [];\n}\n\nreturn [{\n  json: {\n    ...route,\n    replyText: 'Не нашел выбранного агента среди ваших активных агентов. Откройте /agents и выберите агента заново.',\n    replyMarkup: null,\n    nextState: 'idle',\n  },\n}];"
+      },
+      "id": "c649c013-5160-405d-adb8-ea8b7bd46fcc",
+      "name": "Build Agent Ownership Error Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2340,
+        660
+      ]
     }
   ],
   "connections": {
@@ -797,14 +932,14 @@
         ],
         [
           {
-            "node": "Pending ElevenLabs Action Reply",
+            "node": "Validate Agent Update Ownership",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Pending ElevenLabs Action Reply",
+            "node": "Validate Agent Update Ownership",
             "type": "main",
             "index": 0
           }
@@ -1019,6 +1154,104 @@
         [
           {
             "node": "Create ElevenLabs Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get ElevenLabs Agent": {
+      "main": [
+        [
+          {
+            "node": "Build ElevenLabs Patch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build ElevenLabs Patch": {
+      "main": [
+        [
+          {
+            "node": "Patch ElevenLabs Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Patch ElevenLabs Agent": {
+      "main": [
+        [
+          {
+            "node": "Save Agent Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Agent Update": {
+      "main": [
+        [
+          {
+            "node": "Build Agent Update Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Agent Update Reply": {
+      "main": [
+        [
+          {
+            "node": "Build Telegram Plain Reply",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build Telegram Keyboard Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Agent Update Ownership": {
+      "main": [
+        [
+          {
+            "node": "Build Agent Ownership Error Reply",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Restore Validated Agent Update Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restore Validated Agent Update Context": {
+      "main": [
+        [
+          {
+            "node": "Get ElevenLabs Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Agent Ownership Error Reply": {
+      "main": [
+        [
+          {
+            "node": "Set Dialog State",
             "type": "main",
             "index": 0
           }

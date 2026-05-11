@@ -61,11 +61,15 @@ required_nodes=(
   "Save Created Agent"
   "Refresh User Context After Agent Create"
   "Build Created Agent Reply"
+  "Validate Agent Update Ownership"
+  "Build Agent Ownership Error Reply"
+  "Restore Validated Agent Update Context"
   "Get ElevenLabs Agent"
   "Create Knowledge Document"
   "Build ElevenLabs Patch"
   "Patch ElevenLabs Agent"
   "Save Agent Update"
+  "Build Agent Update Reply"
   "Delete Old Knowledge Document"
   "Log Bot Event"
   "Answer Callback Query"
@@ -88,5 +92,11 @@ jq -e '.nodes[] | select(.name == "Create ElevenLabs Agent") | .parameters.authe
 jq -e '.nodes[] | select(.name == "Create ElevenLabs Agent") | .credentials.httpHeaderAuth.name == "ElevenLabs API Key"' "$WORKFLOW_PATH" >/dev/null
 jq -e '.nodes[] | select(.name == "Reserve Agent Slot") | .parameters.query | contains("FOR UPDATE")' "$WORKFLOW_PATH" >/dev/null
 jq -e '.nodes[] | select(.name == "Reserve Agent Slot") | .parameters.query | contains("interval '"'"'15 minutes'"'"'")' "$WORKFLOW_PATH" >/dev/null
+jq -e '.nodes[] | select(.name == "Get ElevenLabs Agent") | .parameters.method == "GET" and .parameters.authentication == "genericCredentialType"' "$WORKFLOW_PATH" >/dev/null
+jq -e '.nodes[] | select(.name == "Patch ElevenLabs Agent") | .parameters.method == "PATCH" and .parameters.authentication == "genericCredentialType"' "$WORKFLOW_PATH" >/dev/null
+jq -e '.nodes[] | select(.name == "Save Agent Update") | .parameters.query | contains("user_id = (SELECT id FROM bot_user)")' "$WORKFLOW_PATH" >/dev/null
+jq -e '.nodes[] | select(.name == "Validate Agent Update Ownership") | .parameters.query | contains("FOR UPDATE")' "$WORKFLOW_PATH" >/dev/null
+jq -e '.nodes[] | select(.name == "Validate Agent Update Ownership") | .parameters.query | contains("validated_agent")' "$WORKFLOW_PATH" >/dev/null
+jq -e '.nodes[] | select(.name == "Patch ElevenLabs Agent") | .parameters.genericAuthType == "httpHeaderAuth" and .credentials.httpHeaderAuth.name == "ElevenLabs API Key"' "$WORKFLOW_PATH" >/dev/null
 
 echo "Telegram ElevenLabs workflow validation passed."
