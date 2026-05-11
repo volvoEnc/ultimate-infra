@@ -36,18 +36,6 @@ Set production values in `n8n/.env`:
 - `GENERIC_TIMEZONE`
 - `TZ`
 
-If you will use the Telegram bot workflow, also set its runtime values before starting n8n:
-
-- `BOT_ACCESS_PASSWORD`
-- `TELEGRAM_BOT_API_BASE_URL`
-- `MAX_AGENTS_PER_USER`
-- `DEFAULT_AGENT_PROMPT`
-- `DEFAULT_AGENT_WELCOME`
-- `DEFAULT_AGENT_LANGUAGE`
-- `DEFAULT_AGENT_VOICE_ID`
-- `DEFAULT_AGENT_TTS_MODEL_ID`
-- `DEFAULT_AGENT_LLM`
-
 Generate `N8N_ENCRYPTION_KEY` as a long random string and keep it stable. Changing it after credentials exist will make stored credentials unreadable.
 
 ## Start
@@ -120,23 +108,25 @@ Create these n8n credentials manually after import:
 
 Attach credentials to the matching Telegram, PostgreSQL, and HTTP Request nodes in the workflow. Name the ElevenLabs HTTP Header Auth credential `ElevenLabs API Key`, or update the imported workflow nodes to match your credential name.
 
-Dynamic inline keyboards, including `/agents`, are sent through Telegram Bot API HTTP calls. n8n's native Telegram node stores inline keyboard rows as a fixedCollection shape, and that shape does not handle dynamic rows cleanly without the sort of ceremony usually reserved for minor court intrigues. Keep using the Telegram API credential for trigger and plain Telegram nodes, but set `TELEGRAM_BOT_API_BASE_URL=https://api.telegram.org/bot<token>` in untracked `n8n/.env` for HTTP Request nodes, where `<token>` is the BotFather token.
+Dynamic inline keyboards, including `/agents`, are sent through Telegram Bot API HTTP calls. n8n's native Telegram node stores inline keyboard rows as a fixedCollection shape, and that shape does not handle dynamic rows cleanly without the sort of ceremony usually reserved for minor court intrigues. Keep using the Telegram API credential for trigger and plain Telegram nodes, but set the HTTP base URL in the workflow settings below.
 
-Set the bot runtime values in untracked `n8n/.env` before starting n8n. This repeats the Setup values with example defaults:
+Open the `Normalize Telegram Update` node and edit the `workflowSettings` object at the top of the code before publishing the workflow:
 
-```env
-BOT_ACCESS_PASSWORD=send-this-password-to-test-users
-TELEGRAM_BOT_API_BASE_URL=https://api.telegram.org/botreplace-with-telegram-bot-token
-MAX_AGENTS_PER_USER=3
-DEFAULT_AGENT_PROMPT="You are a helpful voice assistant."
-DEFAULT_AGENT_WELCOME="Hello, how can I help you today?"
-DEFAULT_AGENT_LANGUAGE=en
-DEFAULT_AGENT_VOICE_ID=cjVigY5qzO86Huf0OWal
-DEFAULT_AGENT_TTS_MODEL_ID=eleven_turbo_v2
-DEFAULT_AGENT_LLM=gpt-4o-mini
+```js
+const workflowSettings = {
+  botAccessPassword: 'send-this-password-to-test-users',
+  telegramBotApiBaseUrl: 'https://api.telegram.org/bot<token>',
+  maxAgentsPerUser: 3,
+  defaultPrompt: 'You are a helpful voice assistant.',
+  defaultWelcome: 'Hello, how can I help you today?',
+  defaultLanguage: 'en',
+  defaultVoiceId: 'cjVigY5qzO86Huf0OWal',
+  defaultTtsModelId: 'eleven_turbo_v2',
+  defaultLlm: 'gpt-4o-mini',
+};
 ```
 
-Do not commit the real `BOT_ACCESS_PASSWORD`, Telegram bot token, or ElevenLabs API key. The workflow reads them from runtime configuration and credentials; the export must stay secret-free.
+The workflow deliberately does not read these values through `process.env`: n8n 2.x runs Code nodes in task runners and may block environment access there by default. Do not commit or share workflow exports containing the real `botAccessPassword`, Telegram bot token, or ElevenLabs API key. Yes, this is the unromantic part where secrets punish optimism.
 
 The bot intentionally accepts only text messages for agent names, prompt updates, welcome message updates, and knowledge content. Files, voice messages, and other Telegram payloads receive a text-only error reply rather than being sent to ElevenLabs.
 

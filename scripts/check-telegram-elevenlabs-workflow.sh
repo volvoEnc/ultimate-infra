@@ -34,6 +34,16 @@ if grep -E 'https://api\.telegram\.org/bot[0-9]{6,}:[A-Za-z0-9_-]{20,}' "$WORKFL
   exit 1
 fi
 
+if grep -F 'process.env' "$WORKFLOW_PATH" >/dev/null; then
+  echo "Workflow Code nodes must not use process.env; n8n v2 task runners do not expose process." >&2
+  exit 1
+fi
+
+if grep -F '$env.' "$WORKFLOW_PATH" >/dev/null; then
+  echo "Workflow must not depend on n8n environment-variable expressions for bot settings." >&2
+  exit 1
+fi
+
 if jq -e '.. | objects | select(.name? == "BOT_ACCESS_PASSWORD" and has("value") and ((.value | type) != "string" or (.value | startswith("={{") | not)))' "$WORKFLOW_PATH" >/dev/null; then
   echo "Workflow appears to contain a literal access password value." >&2
   exit 1
@@ -102,6 +112,8 @@ done
 jq -e '[.nodes[] | select(.type == "n8n-nodes-base.postgres")] | length >= 6' "$WORKFLOW_PATH" >/dev/null
 jq -e '[.nodes[] | select(.type == "n8n-nodes-base.httpRequest")] | length >= 5' "$WORKFLOW_PATH" >/dev/null
 jq -e '[.nodes[] | select(.type == "n8n-nodes-base.code")] | length >= 3' "$WORKFLOW_PATH" >/dev/null
+jq -e '.nodes[] | select(.name == "Normalize Telegram Update") | .parameters.jsCode | contains("workflowSettings") and contains("botAccessPassword") and contains("telegramBotApiBaseUrl")' "$WORKFLOW_PATH" >/dev/null
+jq -e '.nodes[] | select(.name == "Send Telegram Keyboard Message") | .parameters.url | contains("settings.telegramBotApiBaseUrl")' "$WORKFLOW_PATH" >/dev/null
 jq -e '.nodes[] | select(.name == "Create ElevenLabs Agent") | .parameters.method == "POST"' "$WORKFLOW_PATH" >/dev/null
 jq -e '.nodes[] | select(.name == "Create ElevenLabs Agent") | .parameters.url == "https://api.elevenlabs.io/v1/convai/agents/create"' "$WORKFLOW_PATH" >/dev/null
 jq -e '.nodes[] | select(.name == "Create ElevenLabs Agent") | .parameters.authentication == "genericCredentialType" and .parameters.genericAuthType == "httpHeaderAuth"' "$WORKFLOW_PATH" >/dev/null
