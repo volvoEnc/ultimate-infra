@@ -5,7 +5,8 @@
     {
       "parameters": {
         "updates": [
-          "message"
+          "message",
+          "callback_query"
         ],
         "additionalFields": {}
       },
@@ -21,43 +22,337 @@
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
+        "jsCode": "const update = $json;\nconst callback = update.callback_query ?? null;\nconst message = update.message ?? callback?.message ?? {};\nconst from = update.message?.from ?? callback?.from ?? {};\nconst chat = message.chat ?? {};\nconst messageText = typeof update.message?.text === 'string' ? update.message.text : '';\nconst callbackData = typeof callback?.data === 'string' ? callback.data : '';\n\nconst numberOrNull = (value) => {\n  if (value === undefined || value === null || value === '') return null;\n  const parsed = Number(value);\n  return Number.isFinite(parsed) ? parsed : null;\n};\n\nreturn [\n  {\n    json: {\n      updateType: callback ? 'callback_query' : 'message',\n      telegramUserId: numberOrNull(from.id),\n      chatId: numberOrNull(chat.id),\n      messageId: numberOrNull(message.message_id),\n      callbackQueryId: callback?.id ?? '',\n      callbackData,\n      messageText,\n      trimmedText: messageText.trim(),\n      command: messageText.trim().split(/\\s+/)[0] || '',\n      isTextMessage: Boolean(update.message && typeof update.message.text === 'string'),\n      isCallback: Boolean(callback),\n      username: from.username ?? '',\n      firstName: from.first_name ?? '',\n      lastName: from.last_name ?? '',\n      settings: {\n        accessPassword: process.env.BOT_ACCESS_PASSWORD ?? '',\n        maxAgentsPerUser: Number.parseInt(process.env.MAX_AGENTS_PER_USER ?? '3', 10),\n        defaultPrompt: process.env.DEFAULT_AGENT_PROMPT ?? 'You are a helpful voice assistant.',\n        defaultWelcome: process.env.DEFAULT_AGENT_WELCOME ?? 'Hello, how can I help you today?',\n        defaultLanguage: process.env.DEFAULT_AGENT_LANGUAGE ?? 'en',\n        defaultVoiceId: process.env.DEFAULT_AGENT_VOICE_ID ?? 'cjVigY5qzO86Huf0OWal',\n        defaultTtsModelId: process.env.DEFAULT_AGENT_TTS_MODEL_ID ?? 'eleven_turbo_v2',\n        defaultLlm: process.env.DEFAULT_AGENT_LLM ?? 'gpt-4o-mini',\n      },\n    },\n  },\n];"
+      },
+      "id": "56b7363f-1fd7-4ec8-95e5-574a266b6b2b",
+      "name": "Normalize Telegram Update",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        260,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE TABLE IF NOT EXISTS telegram_users (\n  id bigserial PRIMARY KEY,\n  telegram_user_id bigint NOT NULL UNIQUE,\n  chat_id bigint NOT NULL,\n  username text,\n  first_name text,\n  last_name text,\n  active_agent_id bigint,\n  dialog_state text NOT NULL DEFAULT 'idle',\n  created_at timestamptz NOT NULL DEFAULT now(),\n  updated_at timestamptz NOT NULL DEFAULT now()\n);\n\nCREATE TABLE IF NOT EXISTS elevenlabs_agents (\n  id bigserial PRIMARY KEY,\n  user_id bigint NOT NULL REFERENCES telegram_users(id) ON DELETE CASCADE,\n  elevenlabs_agent_id text NOT NULL UNIQUE,\n  display_name text NOT NULL,\n  knowledge_document_id text,\n  prompt_text text,\n  welcome_text text,\n  status text NOT NULL DEFAULT 'active',\n  created_at timestamptz NOT NULL DEFAULT now(),\n  updated_at timestamptz NOT NULL DEFAULT now()\n);\n\nCREATE TABLE IF NOT EXISTS bot_events (\n  id bigserial PRIMARY KEY,\n  user_id bigint REFERENCES telegram_users(id) ON DELETE SET NULL,\n  agent_id bigint REFERENCES elevenlabs_agents(id) ON DELETE SET NULL,\n  event_type text NOT NULL,\n  status text NOT NULL,\n  error_message text,\n  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,\n  created_at timestamptz NOT NULL DEFAULT now()\n);\n\nCREATE INDEX IF NOT EXISTS idx_telegram_users_telegram_user_id\n  ON telegram_users(telegram_user_id);\nCREATE INDEX IF NOT EXISTS idx_elevenlabs_agents_user_id\n  ON elevenlabs_agents(user_id);\nCREATE INDEX IF NOT EXISTS idx_elevenlabs_agents_elevenlabs_agent_id\n  ON elevenlabs_agents(elevenlabs_agent_id);\nCREATE INDEX IF NOT EXISTS idx_bot_events_user_created_at\n  ON bot_events(user_id, created_at DESC);\nCREATE INDEX IF NOT EXISTS idx_bot_events_agent_created_at\n  ON bot_events(agent_id, created_at DESC);",
+        "options": {}
+      },
+      "id": "a74f7784-435b-42e2-a4b5-4a2b217d28c4",
+      "name": "Ensure Bot DB Schema",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        520,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const normalized = $('Normalize Telegram Update').item.json;\nreturn [{ json: { ...normalized, schemaResult: $json } }];"
+      },
+      "id": "6a4d3d80-d61b-4cf7-8601-1a131054ebc3",
+      "name": "Restore Normalized Telegram Update",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        780,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH current_user AS (\n  SELECT *\n  FROM telegram_users\n  WHERE telegram_user_id = $1\n),\nagent_rows AS (\n  SELECT\n    a.id,\n    a.elevenlabs_agent_id,\n    a.display_name,\n    a.knowledge_document_id,\n    a.prompt_text,\n    a.welcome_text,\n    a.status,\n    a.created_at,\n    (a.id = (SELECT active_agent_id FROM current_user)) AS is_active\n  FROM elevenlabs_agents a\n  WHERE a.user_id = (SELECT id FROM current_user)\n    AND a.status = 'active'\n  ORDER BY a.created_at ASC\n),\nactive_agent AS (\n  SELECT *\n  FROM agent_rows\n  WHERE is_active\n  LIMIT 1\n)\nSELECT\n  COALESCE(to_jsonb((SELECT row_to_json(current_user) FROM current_user)), 'null'::jsonb) AS user_record,\n  COALESCE((SELECT jsonb_agg(to_jsonb(agent_rows)) FROM agent_rows), '[]'::jsonb) AS agents,\n  COALESCE(to_jsonb((SELECT row_to_json(active_agent) FROM active_agent)), 'null'::jsonb) AS active_agent;",
+        "options": {
+          "queryReplacement": "={{ $json.telegramUserId }}"
+        }
+      },
+      "id": "23c32255-93df-45fd-9295-725cb08a3f24",
+      "name": "Load User Context",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1040,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const normalized = $('Restore Normalized Telegram Update').item.json;\nreturn [{ json: { ...normalized, ...$json } }];"
+      },
+      "id": "44c6c13b-98d8-4ed6-9849-e5ae622e77ef",
+      "name": "Merge Normalized User Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const user = typeof $json.user_record === 'string' ? JSON.parse($json.user_record) : $json.user_record;\nconst agents = typeof $json.agents === 'string' ? JSON.parse($json.agents) : ($json.agents ?? []);\nconst activeAgent = typeof $json.active_agent === 'string' ? JSON.parse($json.active_agent) : $json.active_agent;\nconst settings = $json.settings ?? {};\nconst maxAgents = Number.isFinite(settings.maxAgentsPerUser) ? settings.maxAgentsPerUser : 3;\n\nconst button = (text, data) => ({ text, callback_data: data });\nconst agentsKeyboard = () => {\n  const rows = agents.map((agent) => [button(agent.is_active ? `✓ ${agent.display_name}` : agent.display_name, `ag:sel:${agent.id}`)]);\n  if (agents.length < maxAgents) rows.push([button('Создать агента', 'ag:new')]);\n  return { inline_keyboard: rows };\n};\nconst actionsKeyboard = () => ({\n  inline_keyboard: [\n    [button('Изменить prompt', 'ag:p')],\n    [button('Изменить приветствие', 'ag:w')],\n    [button('Обновить knowledge', 'ag:k')],\n    [button('Список агентов', 'ag:list')],\n  ],\n});\nconst menuText = () => [\n  'Доступ открыт.',\n  `Лимит агентов: ${maxAgents}.`,\n  'Команда /agents покажет список агентов и действия.',\n].join('\\n');\nconst reply = (route, text, extra = {}) => [{ json: { ...$json, route, replyText: text, replyMarkup: extra.replyMarkup ?? null, ...extra } }];\n\nif (!$json.telegramUserId || !$json.chatId) {\n  return reply('reply', 'Не вижу Telegram user id или chat id. Попробуйте отправить сообщение еще раз.');\n}\n\nif (!user) {\n  if (!settings.accessPassword) {\n    return reply('reply', 'Доступ временно не настроен. Попробуйте позже.');\n  }\n  if ($json.isTextMessage && $json.trimmedText === settings.accessPassword) {\n    return reply('register_user', menuText());\n  }\n  return reply('reply', 'Пришлите пароль доступа текстовым сообщением.');\n}\n\nif ($json.isCallback && $json.callbackData) {\n  if ($json.callbackData === 'ag:list') {\n    return reply('reply', agents.length ? 'Ваши агенты:' : 'У вас пока нет агентов.', { replyMarkup: agentsKeyboard(), answerCallback: true });\n  }\n  if ($json.callbackData === 'ag:new') {\n    if (agents.length >= maxAgents) {\n      return reply('reply', `Лимит агентов исчерпан: ${maxAgents}.`, { answerCallback: true });\n    }\n    return reply('set_state', 'Как назвать нового агента? Пришлите имя текстом.', { nextState: 'awaiting_agent_name', answerCallback: true });\n  }\n  if ($json.callbackData.startsWith('ag:sel:')) {\n    const localAgentId = Number.parseInt($json.callbackData.slice('ag:sel:'.length), 10);\n    const selected = agents.find((agent) => agent.id === localAgentId);\n    if (!selected) return reply('reply', 'Этот агент вам не принадлежит. Выберите агента через /agents.', { answerCallback: true });\n    return reply('set_active_agent', `Выбран агент: ${selected.display_name}`, { activeAgentId: localAgentId, replyMarkup: actionsKeyboard(), answerCallback: true });\n  }\n  if (['ag:p', 'ag:w', 'ag:k'].includes($json.callbackData)) {\n    if (!activeAgent?.id) return reply('reply', 'Сначала выберите агента через /agents.', { answerCallback: true });\n    const states = { 'ag:p': 'awaiting_prompt', 'ag:w': 'awaiting_welcome', 'ag:k': 'awaiting_knowledge' };\n    const texts = {\n      'ag:p': 'Пришлите новый prompt текстом.',\n      'ag:w': 'Пришлите новое приветствие текстом.',\n      'ag:k': 'Пришлите новый knowledge content текстом.',\n    };\n    return reply('set_state', texts[$json.callbackData], { nextState: states[$json.callbackData], answerCallback: true });\n  }\n  return reply('reply', 'Неизвестное действие. Откройте /agents.', { answerCallback: true });\n}\n\nif ($json.command === '/start') return reply('reset_to_menu', menuText(), { nextState: 'idle' });\nif ($json.command === '/agents') return reply('reply', agents.length ? 'Ваши агенты:' : 'У вас пока нет агентов.', { replyMarkup: agentsKeyboard() });\n\nif (user.dialog_state === 'awaiting_agent_name') {\n  if (!$json.isTextMessage || !$json.trimmedText) return reply('reply', 'Имя агента нужно отправить текстом.');\n  if (agents.length >= maxAgents) return reply('reset_to_menu', `Лимит агентов исчерпан: ${maxAgents}.`, { nextState: 'idle' });\n  return reply('create_agent', 'Создаю агента...', { agentName: $json.trimmedText });\n}\n\nif (['awaiting_prompt', 'awaiting_welcome', 'awaiting_knowledge'].includes(user.dialog_state)) {\n  if (!activeAgent?.id) return reply('reset_to_menu', 'Сначала выберите агента через /agents.');\n  if (!$json.isTextMessage || !$json.trimmedText) return reply('reply', 'Пришлите текст. Файлы, голосовые и прочая роскошь в этой версии не принимаются.');\n  const routeByState = {\n    awaiting_prompt: 'update_prompt',\n    awaiting_welcome: 'update_welcome',\n    awaiting_knowledge: 'update_knowledge',\n  };\n  return reply(routeByState[user.dialog_state], 'Обновляю агента...', { newText: $json.trimmedText });\n}\n\nreturn reply('reply', 'Откройте /agents, чтобы выбрать или создать агента.');\n"
+      },
+      "id": "55f10ad2-1c50-4c9a-a6b2-61610dfab3a1",
+      "name": "Route Telegram Event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
             {
-              "id": "6f940ed6-ef79-4c5d-ae89-d4b80bf902a4",
-              "name": "chatId",
-              "value": "={{ $json.message.chat.id }}",
-              "type": "string"
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "route-0",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "register_user",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "register_user"
             },
             {
-              "id": "ba8df1ef-7a9c-4e7a-9a04-4a75a95df4d4",
-              "name": "messageId",
-              "value": "={{ $json.message.message_id }}",
-              "type": "number"
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "route-1",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "set_state",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "set_state"
             },
             {
-              "id": "42ee81ab-5f04-46a4-8c6c-11f4a23bb09c",
-              "name": "messageText",
-              "value": "={{ $json.message.text || '' }}",
-              "type": "string"
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "route-2",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "set_active_agent",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "set_active_agent"
             },
             {
-              "id": "447acbc0-22c3-42a0-9fa8-b524ed8ed7e2",
-              "name": "replyText",
-              "value": "={{ ($json.message.text || '').trim().split(/\\s+/)[0] === '/start' ? 'Привет! Я готов к работе. Голосовую часть подключим на следующем этапе.' : 'Сообщение получил. Голосовую часть подключим на следующем этапе.' }}",
-              "type": "string"
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "route-3",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "reset_to_menu",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "reset_to_menu"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "route-4",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "reply",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "reply"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "route-5",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "create_agent",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "create_agent"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "route-6",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "update_prompt",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "update_prompt"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "route-7",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "update_welcome",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "update_welcome"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "route-8",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "update_knowledge",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "update_knowledge"
             }
           ]
         },
         "options": {}
       },
-      "id": "76d692cc-404b-406d-b038-a44ac2fe18f9",
-      "name": "Prepare Telegram Reply",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
+      "id": "08fde9b7-a383-4f0b-a551-9bbd42bba902",
+      "name": "Route Switch",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
       "position": [
-        260,
+        1820,
         0
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "callback",
+        "operation": "answerQuery",
+        "queryId": "={{ $json.callbackQueryId }}",
+        "additionalFields": {
+          "text": "Готово"
+        }
+      },
+      "id": "996333a0-3c4d-4b28-a13e-ce36d5d35f90",
+      "name": "Answer Callback Query",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2080,
+        -140
       ]
     },
     {
@@ -66,10 +361,11 @@
         "operation": "sendMessage",
         "chatId": "={{ $json.chatId }}",
         "text": "={{ $json.replyText }}",
-        "replyMarkup": "none",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": "={{ $json.replyMarkup ? $json.replyMarkup.inline_keyboard : [] }}",
         "additionalFields": {
           "appendAttribution": false,
-          "reply_to_message_id": "={{ $json.messageId }}"
+          "reply_to_message_id": "={{ $json.messageId || undefined }}"
         }
       },
       "id": "edac524e-b1a5-41d2-b9e0-d066e0f42021",
@@ -77,8 +373,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        520,
-        0
+        2080,
+        120
       ]
     }
   ],
@@ -87,18 +383,73 @@
       "main": [
         [
           {
-            "node": "Prepare Telegram Reply",
+            "node": "Normalize Telegram Update",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Prepare Telegram Reply": {
+    "Normalize Telegram Update": {
       "main": [
         [
           {
-            "node": "Reply in Telegram",
+            "node": "Ensure Bot DB Schema",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ensure Bot DB Schema": {
+      "main": [
+        [
+          {
+            "node": "Restore Normalized Telegram Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restore Normalized Telegram Update": {
+      "main": [
+        [
+          {
+            "node": "Load User Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load User Context": {
+      "main": [
+        [
+          {
+            "node": "Merge Normalized User Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Normalized User Context": {
+      "main": [
+        [
+          {
+            "node": "Route Telegram Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Telegram Event": {
+      "main": [
+        [
+          {
+            "node": "Route Switch",
             "type": "main",
             "index": 0
           }
