@@ -54,6 +54,11 @@ if grep -F '.item.json' "$WORKFLOW_PATH" >/dev/null; then
   exit 1
 fi
 
+if grep -F 'structuredClone' "$WORKFLOW_PATH" >/dev/null; then
+  echo "Workflow Code nodes must not use structuredClone; n8n task runner context does not expose it." >&2
+  exit 1
+fi
+
 if jq -e '.. | objects | select(.name? == "BOT_ACCESS_PASSWORD" and has("value") and ((.value | type) != "string" or (.value | startswith("={{") | not)))' "$WORKFLOW_PATH" >/dev/null; then
   echo "Workflow appears to contain a literal access password value." >&2
   exit 1
@@ -140,6 +145,8 @@ jq -e '.nodes[] | select(.name == "Reserve Agent Slot") | .parameters.query | co
 jq -e '.nodes[] | select(.name == "Get ElevenLabs Agent") | .parameters.method == "GET" and .parameters.authentication == "genericCredentialType"' "$WORKFLOW_PATH" >/dev/null
 jq -e '.nodes[] | select(.name == "Patch ElevenLabs Agent") | .parameters.method == "PATCH" and .parameters.authentication == "genericCredentialType"' "$WORKFLOW_PATH" >/dev/null
 jq -e '.nodes[] | select(.name == "Save Agent Update") | .parameters.query | contains("user_id = (SELECT id FROM bot_user)")' "$WORKFLOW_PATH" >/dev/null
+jq -e '.nodes[] | select(.name == "Set Dialog State") | .parameters.query | contains("NULLIF($3::text, '"'"''"'"')::bigint")' "$WORKFLOW_PATH" >/dev/null
+jq -e '.nodes[] | select(.name == "Set Dialog State") | .parameters.options.queryReplacement | contains("?? null")' "$WORKFLOW_PATH" >/dev/null
 jq -e '.nodes[] | select(.name == "Validate Agent Update Ownership") | .parameters.query | contains("FOR UPDATE")' "$WORKFLOW_PATH" >/dev/null
 jq -e '.nodes[] | select(.name == "Validate Agent Update Ownership") | .parameters.query | contains("validated_agent")' "$WORKFLOW_PATH" >/dev/null
 jq -e '.nodes[] | select(.name == "Patch ElevenLabs Agent") | .parameters.genericAuthType == "httpHeaderAuth"' "$WORKFLOW_PATH" >/dev/null
@@ -154,6 +161,7 @@ if jq -e '.nodes[] | select(.name == "Delete Old Knowledge Document") | .paramet
   exit 1
 fi
 jq -e '.nodes[] | select(.name == "Log Bot Event") | .parameters.query | contains("INSERT INTO bot_events")' "$WORKFLOW_PATH" >/dev/null
+jq -e '.nodes[] | select(.name == "Log Bot Event") | .parameters.query | contains("NULLIF($1::text, '"'"''"'"')::bigint") and contains("NULLIF($2::text, '"'"''"'"')::bigint")' "$WORKFLOW_PATH" >/dev/null
 jq -e '.nodes[] | select(.name == "Log Bot Event") | .continueOnFail == true' "$WORKFLOW_PATH" >/dev/null
 jq -e '.nodes[] | select(.name == "Create ElevenLabs Agent") | .continueOnFail == true' "$WORKFLOW_PATH" >/dev/null
 jq -e '.nodes[] | select(.name == "Patch ElevenLabs Agent") | .continueOnFail == true' "$WORKFLOW_PATH" >/dev/null
