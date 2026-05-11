@@ -109,16 +109,33 @@ if [[ -n "$PROJECT_ID" && -n "$USER_ID" ]]; then
   exit 1
 fi
 
+container_sees_workflows() {
+  if ! compose_in_dir "$N8N_DIR" exec -T n8n test -d "$CONTAINER_WORKFLOWS_DIR"; then
+    return 1
+  fi
+
+  for workflow_file in "${WORKFLOW_FILES[@]}"; do
+    workflow_name="$(basename "$workflow_file")"
+    if ! compose_in_dir "$N8N_DIR" exec -T n8n test -f "$CONTAINER_WORKFLOWS_DIR/$workflow_name"; then
+      return 1
+    fi
+  done
+}
+
+recreate_n8n_with_current_mounts() {
+  echo "n8n container does not see committed workflow files. Recreating it with current compose mounts."
+  compose_in_dir "$N8N_DIR" up -d --force-recreate --remove-orphans n8n
+  "$SCRIPT_DIR/healthcheck.sh" n8n
+}
+
 "$SCRIPT_DIR/create-network.sh" proxy
 "$SCRIPT_DIR/create-network.sh" data
 
 compose_in_dir "$N8N_DIR" up -d --remove-orphans
 "$SCRIPT_DIR/healthcheck.sh" n8n
 
-if ! compose_in_dir "$N8N_DIR" exec -T n8n test -d "$CONTAINER_WORKFLOWS_DIR"; then
-  echo "Missing /workflows mount inside n8n container." >&2
-  echo "Run 'make up-n8n' after adding the ./workflows:/workflows:ro mount." >&2
-  exit 1
+if ! container_sees_workflows; then
+  recreate_n8n_with_current_mounts
 fi
 
 echo "Importing ${#WORKFLOW_FILES[@]} n8n workflow file(s)."
@@ -129,7 +146,7 @@ for workflow_file in "${WORKFLOW_FILES[@]}"; do
 
   if ! compose_in_dir "$N8N_DIR" exec -T n8n test -f "$container_workflow_path"; then
     echo "Workflow is not visible inside n8n container: $container_workflow_path" >&2
-    echo "Check the ./workflows:/workflows:ro bind mount and deployed git revision." >&2
+    echo "Check the ./workflows:/workflows:ro bind mount, deployed git revision, and Docker bind mount permissions." >&2
     exit 1
   fi
 
