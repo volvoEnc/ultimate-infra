@@ -49,6 +49,11 @@ if grep -E '__[A-Z0-9_]+CREDENTIAL_ID__' "$WORKFLOW_PATH" >/dev/null; then
   exit 1
 fi
 
+if grep -F '.item.json' "$WORKFLOW_PATH" >/dev/null; then
+  echo "Workflow must not use .item.json node lookups; use first().json to avoid paired-item failures in n8n task runners." >&2
+  exit 1
+fi
+
 if jq -e '.. | objects | select(.name? == "BOT_ACCESS_PASSWORD" and has("value") and ((.value | type) != "string" or (.value | startswith("={{") | not)))' "$WORKFLOW_PATH" >/dev/null; then
   echo "Workflow appears to contain a literal access password value." >&2
   exit 1
