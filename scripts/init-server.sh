@@ -46,4 +46,5 @@ Next steps:
   4. Start postgres if needed: make up-postgres
   5. Start registry if needed: make up-registry
   6. Start observability: make up-observability
+  7. Start n8n if needed: make up-n8n
 EOF
