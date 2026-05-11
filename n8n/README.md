@@ -36,6 +36,17 @@ Set production values in `n8n/.env`:
 - `GENERIC_TIMEZONE`
 - `TZ`
 
+If you will use the Telegram bot workflow, also set its runtime values before starting n8n:
+
+- `BOT_ACCESS_PASSWORD`
+- `MAX_AGENTS_PER_USER`
+- `DEFAULT_AGENT_PROMPT`
+- `DEFAULT_AGENT_WELCOME`
+- `DEFAULT_AGENT_LANGUAGE`
+- `DEFAULT_AGENT_VOICE_ID`
+- `DEFAULT_AGENT_TTS_MODEL_ID`
+- `DEFAULT_AGENT_LLM`
+
 Generate `N8N_ENCRYPTION_KEY` as a long random string and keep it stable. Changing it after credentials exist will make stored credentials unreadable.
 
 ## Start
