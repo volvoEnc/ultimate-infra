@@ -1,0 +1,84 @@
+# n8n
+
+`n8n/` runs a self-hosted n8n instance behind the shared Traefik gateway.
+
+The stack uses:
+
+- one official n8n container;
+- the existing shared PostgreSQL service at `infra-postgres:5432`;
+- the external `proxy` network for Traefik;
+- the external `data` network for PostgreSQL;
+- the named volume `n8n-data` for `/home/node/.n8n`.
+
+## Setup
+
+Create a dedicated PostgreSQL database and user:
+
+```bash
+./scripts/create-postgres-app-db.sh n8n prod
+```
+
+Copy the env example:
+
+```bash
+cp n8n/.env.example n8n/.env
+chmod 600 n8n/.env
+```
+
+Set production values in `n8n/.env`:
+
+- `N8N_HOST`
+- `WEBHOOK_URL`
+- `N8N_ENCRYPTION_KEY`
+- `DB_POSTGRESDB_DATABASE`
+- `DB_POSTGRESDB_USER`
+- `DB_POSTGRESDB_PASSWORD`
+- `GENERIC_TIMEZONE`
+- `TZ`
+
+Generate `N8N_ENCRYPTION_KEY` as a long random string and keep it stable. Changing it after credentials exist will make stored credentials unreadable.
+
+## Start
+
+```bash
+make up-postgres
+make up-gateway
+make up-n8n
+```
+
+Open `https://<N8N_HOST>/` and complete n8n owner setup.
+
+## Operations
+
+```bash
+./scripts/healthcheck.sh n8n
+./scripts/logs.sh n8n
+./scripts/restart.sh n8n
+```
+
+## Backup
+
+Back up the Docker volume:
+
+```bash
+./scripts/backup-volumes.sh --stack n8n
+```
+
+Also back up the dedicated PostgreSQL database. The volume alone is not enough because workflows, credentials, and execution data live in PostgreSQL when `DB_TYPE=postgresdb`.
+
+## Update
+
+Before updating n8n:
+
+```bash
+./scripts/backup-env.sh
+./scripts/backup-volumes.sh --stack n8n
+```
+
+Then update `N8N_VERSION` in `n8n/.env`, pull, and restart:
+
+```bash
+cd n8n
+docker compose --env-file .env pull
+docker compose --env-file .env up -d --remove-orphans
+```
