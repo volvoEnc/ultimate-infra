@@ -5,7 +5,7 @@ SHELL := /usr/bin/env bash
 APP ?=
 ENV ?=
 
-.PHONY: help up-gateway up-postgres up-registry up-observability up-admin up-uptime up-centrifugo up-n8n import-n8n-workflows deploy logs status init-server
+.PHONY: help up-gateway up-postgres up-registry up-observability up-admin up-uptime up-centrifugo up-n8n import-n8n-workflows check-telegram-elevenlabs-workflow deploy logs status init-server
 
 help:
 	@printf '%s\n' \
@@ -19,6 +19,7 @@ help:
 	  '  make up-centrifugo' \
 	  '  make up-n8n' \
 	  '  make import-n8n-workflows' \
+	  '  make check-telegram-elevenlabs-workflow' \
 	  '  make deploy APP=app1 ENV=prod' \
 	  '  make logs APP=app1 ENV=prod' \
 	  '  make status' \
@@ -65,6 +66,9 @@ up-n8n:
 
 import-n8n-workflows:
 	./scripts/import-n8n-workflows.sh
+
+check-telegram-elevenlabs-workflow:
+	./scripts/check-telegram-elevenlabs-workflow.sh
 
 deploy:
 	@test -n "$(APP)" && test -n "$(ENV)" || (echo 'Usage: make deploy APP=<name> ENV=<prod|stage>' >&2; exit 1)
