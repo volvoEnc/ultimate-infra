@@ -96,7 +96,9 @@ N8N_IMPORT_USER_ID=<user-id>
 
 Open n8n and check that `Telegram ElevenLabs Bot` exists.
 
-The committed `Telegram ElevenLabs Bot` workflow handles:
+The expanded `Telegram ElevenLabs Bot` workflow uses the settings and credentials below. Until that expanded workflow JSON is imported, the committed workflow may only provide the rollout scaffold rather than the full bot behavior; documentation should not perform prophecy where version control has not yet provided evidence.
+
+After the expanded workflow is imported, it is expected to handle:
 
 - password-gated first access for unknown Telegram users;
 - `/start` menu;
@@ -117,7 +119,7 @@ Create these n8n credentials manually after import:
 
 Attach credentials to the matching Telegram, PostgreSQL, and HTTP Request nodes in the workflow.
 
-Set these bot runtime values in untracked `n8n/.env` before starting n8n:
+Set the bot runtime values in untracked `n8n/.env` before starting n8n. This repeats the Setup values with example defaults:
 
 ```env
 BOT_ACCESS_PASSWORD=send-this-password-to-test-users
