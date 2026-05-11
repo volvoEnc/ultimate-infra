@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-WORKFLOW_PATH="${1:-n8n/workflows/telegram-elevenlabs-bot.json}"
+WORKFLOW_PATH="${1:-${WORKFLOW_PATH:-n8n/workflows/telegram-elevenlabs-bot.json}}"
 
 if [[ ! -f "$WORKFLOW_PATH" ]]; then
   echo "Workflow file not found: $WORKFLOW_PATH" >&2
@@ -49,8 +49,18 @@ if grep -E 'xi-api-key"[[:space:]]*:[[:space:]]*"[^=]' "$WORKFLOW_PATH" >/dev/nu
   exit 1
 fi
 
+if jq -e '.. | objects | select(.name? == "xi-api-key" and has("value") and ((.value | type) != "string" or (.value | startswith("={{") | not)))' "$WORKFLOW_PATH" >/dev/null; then
+  echo "Workflow appears to contain a literal ElevenLabs API key header." >&2
+  exit 1
+fi
+
 if grep -E 'BOT_ACCESS_PASSWORD[[:space:]]*=' "$WORKFLOW_PATH" >/dev/null; then
   echo "Workflow appears to contain a literal access password assignment." >&2
+  exit 1
+fi
+
+if jq -e '.. | objects | select(.name? == "BOT_ACCESS_PASSWORD" and has("value") and ((.value | type) != "string" or (.value | startswith("={{") | not)))' "$WORKFLOW_PATH" >/dev/null; then
+  echo "Workflow appears to contain a literal access password value." >&2
   exit 1
 fi
 
