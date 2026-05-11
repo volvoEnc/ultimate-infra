@@ -83,14 +83,43 @@ N8N_IMPORT_PROJECT_ID=<project-id>
 N8N_IMPORT_USER_ID=<user-id>
 ```
 
-Open n8n and check that `Telegram ElevenLabs Bot` exists. Create a Telegram API credential with the bot token from BotFather, attach it to both Telegram nodes, then activate the workflow.
+Open n8n and check that `Telegram ElevenLabs Bot` exists.
 
-The first version handles incoming Telegram messages only:
+The committed `Telegram ElevenLabs Bot` workflow handles:
 
-- `/start` replies with the default welcome text.
-- any other message gets a default "message received" reply.
+- password-gated first access for unknown Telegram users;
+- `/start` menu;
+- `/agents` inline agent list and agent creation;
+- prompt, welcome message, and text-only knowledge updates for the selected ElevenLabs agent.
 
-ElevenLabs integration is intentionally left for the next workflow step, after the Telegram entry point is stable.
+Create a dedicated PostgreSQL database for bot business data:
+
+```bash
+./scripts/create-postgres-app-db.sh telegram-elevenlabs-bot prod
+```
+
+Create these n8n credentials manually after import:
+
+- Telegram API credential for the bot token from BotFather;
+- PostgreSQL credential pointing at the bot business database, not the n8n internal database;
+- HTTP Header Auth credential for ElevenLabs with header name `xi-api-key` and the ElevenLabs API key as the value.
+
+Attach credentials to the matching Telegram, PostgreSQL, and HTTP Request nodes in the workflow.
+
+Set these bot runtime values in untracked `n8n/.env` before starting n8n:
+
+```env
+BOT_ACCESS_PASSWORD=send-this-password-to-test-users
+MAX_AGENTS_PER_USER=3
+DEFAULT_AGENT_PROMPT="You are a helpful voice assistant."
+DEFAULT_AGENT_WELCOME="Hello, how can I help you today?"
+DEFAULT_AGENT_LANGUAGE=en
+DEFAULT_AGENT_VOICE_ID=cjVigY5qzO86Huf0OWal
+DEFAULT_AGENT_TTS_MODEL_ID=eleven_turbo_v2
+DEFAULT_AGENT_LLM=gpt-4o-mini
+```
+
+Do not commit the real `BOT_ACCESS_PASSWORD` or ElevenLabs API key. The workflow reads them from runtime configuration and credentials; the export must stay secret-free.
 
 Export current workflows for inspection:
 
