@@ -22,12 +22,27 @@
     },
     {
       "parameters": {
-        "jsCode": "const workflowSettings = {\n  // Edit these values in the imported workflow before publishing it.\n  // Keep real passwords and bot tokens out of committed workflow exports.\n  botAccessPassword: '',\n  telegramBotApiBaseUrl: 'https://api.telegram.org/botreplace-with-telegram-bot-token',\n  maxAgentsPerUser: 3,\n  defaultPrompt: 'You are a helpful voice assistant.',\n  defaultWelcome: 'Hello, how can I help you today?',\n  defaultLanguage: 'en',\n  defaultVoiceId: 'cjVigY5qzO86Huf0OWal',\n  defaultTtsModelId: 'eleven_turbo_v2',\n  defaultLlm: 'gpt-4o-mini',\n};\n\nconst settingText = (value, fallback = '') => {\n  const text = String(value ?? '').trim();\n  return text || fallback;\n};\nconst settingInt = (value, fallback) => {\n  const parsed = Number.parseInt(String(value ?? ''), 10);\n  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;\n};\n\nconst update = $json;\nconst callback = update.callback_query ?? null;\nconst message = update.message ?? callback?.message ?? {};\nconst from = update.message?.from ?? callback?.from ?? {};\nconst chat = message.chat ?? {};\nconst rawMessageText = typeof update.message?.text === 'string' ? update.message.text : '';\nconst trimmedRawMessageText = rawMessageText.trim();\nconst callbackData = typeof callback?.data === 'string' ? callback.data : '';\nconst accessPassword = settingText(workflowSettings.botAccessPassword);\nconst accessPasswordConfigured = accessPassword.length > 0;\nconst accessPasswordMatched = accessPasswordConfigured && trimmedRawMessageText === accessPassword;\nconst messageText = accessPasswordMatched ? '[access-password]' : '';\nconst trimmedText = '';\nconst command = '';\n\nconst numberOrNull = (value) => {\n  if (value === undefined || value === null || value === '') return null;\n  const parsed = Number(value);\n  return Number.isFinite(parsed) ? parsed : null;\n};\n\nreturn [\n  {\n    json: {\n      updateType: callback ? 'callback_query' : 'message',\n      telegramUserId: numberOrNull(from.id),\n      chatId: numberOrNull(chat.id),\n      messageId: numberOrNull(message.message_id),\n      callbackQueryId: callback?.id ?? '',\n      callbackData,\n      messageText,\n      trimmedText,\n      command,\n      isTextMessage: Boolean(update.message && typeof update.message.text === 'string'),\n      isCallback: Boolean(callback),\n      username: from.username ?? '',\n      firstName: from.first_name ?? '',\n      lastName: from.last_name ?? '',\n      accessPasswordConfigured,\n      accessPasswordMatched,\n      settings: {\n        telegramBotApiBaseUrl: settingText(workflowSettings.telegramBotApiBaseUrl).replace(/\\/$/, ''),\n        maxAgentsPerUser: settingInt(workflowSettings.maxAgentsPerUser, 3),\n        defaultPrompt: settingText(workflowSettings.defaultPrompt, 'You are a helpful voice assistant.'),\n        defaultWelcome: settingText(workflowSettings.defaultWelcome, 'Hello, how can I help you today?'),\n        defaultLanguage: settingText(workflowSettings.defaultLanguage, 'en'),\n        defaultVoiceId: settingText(workflowSettings.defaultVoiceId, 'cjVigY5qzO86Huf0OWal'),\n        defaultTtsModelId: settingText(workflowSettings.defaultTtsModelId, 'eleven_turbo_v2'),\n        defaultLlm: settingText(workflowSettings.defaultLlm, 'gpt-4o-mini'),\n      },\n    },\n  },\n];"
+        "jsCode": "const settingText = (value, fallback = '') => {\n  const text = String(value ?? '').trim();\n  return text || fallback;\n};\nconst settingInt = (value, fallback) => {\n  const parsed = Number.parseInt(String(value ?? ''), 10);\n  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;\n};\n\nconst botSettings = $json ?? {};\nconst update = $('Telegram Trigger').item.json;\nconst callback = update.callback_query ?? null;\nconst message = update.message ?? callback?.message ?? {};\nconst from = update.message?.from ?? callback?.from ?? {};\nconst chat = message.chat ?? {};\nconst rawMessageText = typeof update.message?.text === 'string' ? update.message.text : '';\nconst callbackData = typeof callback?.data === 'string' ? callback.data : '';\nconst accessPasswordConfigured = Boolean(botSettings.access_password_configured);\nconst accessPasswordMatched = Boolean(botSettings.access_password_matched);\nconst messageText = accessPasswordMatched ? '[access-password]' : '';\nconst trimmedText = '';\nconst command = '';\n\nconst numberOrNull = (value) => {\n  if (value === undefined || value === null || value === '') return null;\n  const parsed = Number(value);\n  return Number.isFinite(parsed) ? parsed : null;\n};\n\nreturn [\n  {\n    json: {\n      updateType: callback ? 'callback_query' : 'message',\n      telegramUserId: numberOrNull(from.id),\n      chatId: numberOrNull(chat.id),\n      messageId: numberOrNull(message.message_id),\n      callbackQueryId: callback?.id ?? '',\n      callbackData,\n      messageText,\n      trimmedText,\n      command,\n      isTextMessage: Boolean(update.message && typeof update.message.text === 'string'),\n      isCallback: Boolean(callback),\n      username: from.username ?? '',\n      firstName: from.first_name ?? '',\n      lastName: from.last_name ?? '',\n      accessPasswordConfigured,\n      accessPasswordMatched,\n      settings: {\n        telegramBotApiBaseUrl: settingText(botSettings.telegram_bot_api_base_url).replace(/\\/$/, ''),\n        maxAgentsPerUser: settingInt(botSettings.max_agents_per_user, 3),\n        defaultPrompt: settingText(botSettings.default_agent_prompt, 'You are a helpful voice assistant.'),\n        defaultWelcome: settingText(botSettings.default_agent_welcome, 'Hello, how can I help you today?'),\n        defaultLanguage: settingText(botSettings.default_agent_language, 'en'),\n        defaultVoiceId: settingText(botSettings.default_agent_voice_id, 'cjVigY5qzO86Huf0OWal'),\n        defaultTtsModelId: settingText(botSettings.default_agent_tts_model_id, 'eleven_turbo_v2'),\n        defaultLlm: settingText(botSettings.default_agent_llm, 'gpt-4o-mini'),\n      },\n    },\n  },\n];"
       },
       "id": "56b7363f-1fd7-4ec8-95e5-574a266b6b2b",
       "name": "Normalize Telegram Update",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
+      "position": [
+        780,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE TABLE IF NOT EXISTS telegram_users (\n  id bigserial PRIMARY KEY,\n  telegram_user_id bigint NOT NULL UNIQUE,\n  chat_id bigint NOT NULL,\n  username text,\n  first_name text,\n  last_name text,\n  active_agent_id bigint,\n  dialog_state text NOT NULL DEFAULT 'idle',\n  created_at timestamptz NOT NULL DEFAULT now(),\n  updated_at timestamptz NOT NULL DEFAULT now()\n);\n\nCREATE TABLE IF NOT EXISTS elevenlabs_agents (\n  id bigserial PRIMARY KEY,\n  user_id bigint NOT NULL REFERENCES telegram_users(id) ON DELETE CASCADE,\n  elevenlabs_agent_id text NOT NULL UNIQUE,\n  display_name text NOT NULL,\n  knowledge_document_id text,\n  prompt_text text,\n  welcome_text text,\n  status text NOT NULL DEFAULT 'active',\n  created_at timestamptz NOT NULL DEFAULT now(),\n  updated_at timestamptz NOT NULL DEFAULT now()\n);\n\nCREATE TABLE IF NOT EXISTS bot_events (\n  id bigserial PRIMARY KEY,\n  user_id bigint REFERENCES telegram_users(id) ON DELETE SET NULL,\n  agent_id bigint REFERENCES elevenlabs_agents(id) ON DELETE SET NULL,\n  event_type text NOT NULL,\n  status text NOT NULL,\n  error_message text,\n  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,\n  created_at timestamptz NOT NULL DEFAULT now()\n);\n\nCREATE TABLE IF NOT EXISTS bot_settings (\n  id smallint PRIMARY KEY DEFAULT 1,\n  bot_access_password text NOT NULL DEFAULT '',\n  telegram_bot_api_base_url text NOT NULL DEFAULT 'https://api.telegram.org/botreplace-with-telegram-bot-token',\n  max_agents_per_user integer NOT NULL DEFAULT 3 CHECK (max_agents_per_user > 0),\n  default_agent_prompt text NOT NULL DEFAULT 'You are a helpful voice assistant.',\n  default_agent_welcome text NOT NULL DEFAULT 'Hello, how can I help you today?',\n  default_agent_language text NOT NULL DEFAULT 'en',\n  default_agent_voice_id text NOT NULL DEFAULT 'cjVigY5qzO86Huf0OWal',\n  default_agent_tts_model_id text NOT NULL DEFAULT 'eleven_turbo_v2',\n  default_agent_llm text NOT NULL DEFAULT 'gpt-4o-mini',\n  created_at timestamptz NOT NULL DEFAULT now(),\n  updated_at timestamptz NOT NULL DEFAULT now(),\n  CONSTRAINT bot_settings_singleton CHECK (id = 1)\n);\n\nINSERT INTO bot_settings (id)\nVALUES (1)\nON CONFLICT (id) DO NOTHING;\n\nCREATE INDEX IF NOT EXISTS idx_telegram_users_telegram_user_id\n  ON telegram_users(telegram_user_id);\nCREATE INDEX IF NOT EXISTS idx_elevenlabs_agents_user_id\n  ON elevenlabs_agents(user_id);\nCREATE INDEX IF NOT EXISTS idx_elevenlabs_agents_elevenlabs_agent_id\n  ON elevenlabs_agents(elevenlabs_agent_id);\nCREATE INDEX IF NOT EXISTS idx_bot_events_user_created_at\n  ON bot_events(user_id, created_at DESC);\nCREATE INDEX IF NOT EXISTS idx_bot_events_agent_created_at\n  ON bot_events(agent_id, created_at DESC);\n\nSELECT true AS schema_ready;",
+        "options": {}
+      },
+      "id": "a74f7784-435b-42e2-a4b5-4a2b217d28c4",
+      "name": "Ensure Bot DB Schema",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
       "position": [
         260,
         0
@@ -36,11 +51,13 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "CREATE TABLE IF NOT EXISTS telegram_users (\n  id bigserial PRIMARY KEY,\n  telegram_user_id bigint NOT NULL UNIQUE,\n  chat_id bigint NOT NULL,\n  username text,\n  first_name text,\n  last_name text,\n  active_agent_id bigint,\n  dialog_state text NOT NULL DEFAULT 'idle',\n  created_at timestamptz NOT NULL DEFAULT now(),\n  updated_at timestamptz NOT NULL DEFAULT now()\n);\n\nCREATE TABLE IF NOT EXISTS elevenlabs_agents (\n  id bigserial PRIMARY KEY,\n  user_id bigint NOT NULL REFERENCES telegram_users(id) ON DELETE CASCADE,\n  elevenlabs_agent_id text NOT NULL UNIQUE,\n  display_name text NOT NULL,\n  knowledge_document_id text,\n  prompt_text text,\n  welcome_text text,\n  status text NOT NULL DEFAULT 'active',\n  created_at timestamptz NOT NULL DEFAULT now(),\n  updated_at timestamptz NOT NULL DEFAULT now()\n);\n\nCREATE TABLE IF NOT EXISTS bot_events (\n  id bigserial PRIMARY KEY,\n  user_id bigint REFERENCES telegram_users(id) ON DELETE SET NULL,\n  agent_id bigint REFERENCES elevenlabs_agents(id) ON DELETE SET NULL,\n  event_type text NOT NULL,\n  status text NOT NULL,\n  error_message text,\n  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,\n  created_at timestamptz NOT NULL DEFAULT now()\n);\n\nCREATE INDEX IF NOT EXISTS idx_telegram_users_telegram_user_id\n  ON telegram_users(telegram_user_id);\nCREATE INDEX IF NOT EXISTS idx_elevenlabs_agents_user_id\n  ON elevenlabs_agents(user_id);\nCREATE INDEX IF NOT EXISTS idx_elevenlabs_agents_elevenlabs_agent_id\n  ON elevenlabs_agents(elevenlabs_agent_id);\nCREATE INDEX IF NOT EXISTS idx_bot_events_user_created_at\n  ON bot_events(user_id, created_at DESC);\nCREATE INDEX IF NOT EXISTS idx_bot_events_agent_created_at\n  ON bot_events(agent_id, created_at DESC);",
-        "options": {}
+        "query": "SELECT\n  (bot_access_password <> '') AS access_password_configured,\n  (bot_access_password <> '' AND bot_access_password = $1) AS access_password_matched,\n  telegram_bot_api_base_url,\n  max_agents_per_user,\n  default_agent_prompt,\n  default_agent_welcome,\n  default_agent_language,\n  default_agent_voice_id,\n  default_agent_tts_model_id,\n  default_agent_llm\nFROM bot_settings\nWHERE id = 1;",
+        "options": {
+          "queryReplacement": "={{ typeof $('Telegram Trigger').item.json.message?.text === 'string' ? $('Telegram Trigger').item.json.message.text.trim() : '' }}"
+        }
       },
-      "id": "a74f7784-435b-42e2-a4b5-4a2b217d28c4",
-      "name": "Ensure Bot DB Schema",
+      "id": "b5d7c5e2-19bb-44b7-9f5c-f026e5de5ad0",
+      "name": "Load Bot Settings",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
@@ -50,14 +67,14 @@
     },
     {
       "parameters": {
-        "jsCode": "const normalized = $('Normalize Telegram Update').item.json;\nreturn [{ json: { ...normalized, schemaResult: $json } }];"
+        "jsCode": "return [{ json: $json }];"
       },
       "id": "6a4d3d80-d61b-4cf7-8601-1a131054ebc3",
       "name": "Restore Normalized Telegram Update",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        780,
+        1040,
         0
       ]
     },
@@ -74,7 +91,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1040,
+        1300,
         0
       ]
     },
@@ -87,7 +104,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1300,
+        1560,
         0
       ]
     },
@@ -100,7 +117,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1560,
+        1820,
         0
       ]
     },
@@ -333,7 +350,7 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.2,
       "position": [
-        1820,
+        2080,
         0
       ]
     },
@@ -351,7 +368,7 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        2080,
+        2340,
         -140
       ]
     },
@@ -372,7 +389,7 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        2080,
+        2340,
         120
       ]
     },
@@ -385,7 +402,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2080,
+        2340,
         -420
       ]
     },
@@ -402,7 +419,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        2080,
+        2340,
         -700
       ]
     },
@@ -419,7 +436,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        2340,
+        2600,
         -700
       ]
     },
@@ -432,7 +449,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2600,
+        2860,
         -700
       ]
     },
@@ -449,7 +466,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        2080,
+        2340,
         -120
       ]
     },
@@ -462,7 +479,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2340,
+        2600,
         -120
       ]
     },
@@ -475,7 +492,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2860,
+        3120,
         -20
       ]
     },
@@ -488,7 +505,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2860,
+        3120,
         -260
       ]
     },
@@ -506,7 +523,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        3120,
+        3380,
         -260
       ]
     },
@@ -519,7 +536,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2080,
+        2340,
         520
       ]
     },
@@ -532,7 +549,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2080,
+        2340,
         420
       ]
     },
@@ -552,15 +569,9 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2860,
+        3120,
         560
       ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "__ELEVENLABS_HTTP_HEADER_AUTH_CREDENTIAL_ID__",
-          "name": "ElevenLabs API Key"
-        }
-      },
       "continueOnFail": true
     },
     {
@@ -576,7 +587,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        3380,
+        3640,
         560
       ],
       "continueOnFail": true
@@ -594,7 +605,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        3640,
+        3900,
         560
       ]
     },
@@ -607,7 +618,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3900,
+        4160,
         560
       ]
     },
@@ -624,7 +635,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        2340,
+        2600,
         420
       ]
     },
@@ -637,7 +648,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2600,
+        2860,
         260
       ]
     },
@@ -650,7 +661,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2600,
+        2860,
         560
       ]
     },
@@ -667,15 +678,9 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2600,
+        2860,
         820
-      ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "__ELEVENLABS_HTTP_HEADER_AUTH_CREDENTIAL_ID__",
-          "name": "ElevenLabs API Key"
-        }
-      }
+      ]
     },
     {
       "parameters": {
@@ -686,7 +691,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3380,
+        3640,
         820
       ]
     },
@@ -706,15 +711,9 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        3640,
+        3900,
         820
       ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "__ELEVENLABS_HTTP_HEADER_AUTH_CREDENTIAL_ID__",
-          "name": "ElevenLabs API Key"
-        }
-      },
       "continueOnFail": true
     },
     {
@@ -730,7 +729,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        4160,
+        4420,
         820
       ],
       "continueOnFail": true
@@ -744,7 +743,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4420,
+        4680,
         820
       ]
     },
@@ -761,7 +760,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        2080,
+        2340,
         820
       ]
     },
@@ -774,7 +773,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2340,
+        2600,
         940
       ]
     },
@@ -787,7 +786,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2340,
+        2600,
         660
       ]
     },
@@ -800,7 +799,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2860,
+        3120,
         720
       ]
     },
@@ -813,7 +812,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2860,
+        3120,
         980
       ]
     },
@@ -833,15 +832,9 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        3120,
+        3380,
         980
       ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "__ELEVENLABS_HTTP_HEADER_AUTH_CREDENTIAL_ID__",
-          "name": "ElevenLabs API Key"
-        }
-      },
       "continueOnFail": true
     },
     {
@@ -853,7 +846,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4420,
+        4680,
         1080
       ]
     },
@@ -878,15 +871,9 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        4420,
+        4680,
         1080
       ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "__ELEVENLABS_HTTP_HEADER_AUTH_CREDENTIAL_ID__",
-          "name": "ElevenLabs API Key"
-        }
-      },
       "continueOnFail": true
     },
     {
@@ -898,7 +885,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3900,
+        4160,
         120
       ]
     },
@@ -915,7 +902,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        4160,
+        4420,
         120
       ],
       "continueOnFail": true
@@ -929,7 +916,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4680,
+        4940,
         1080
       ]
     },
@@ -942,7 +929,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3120,
+        3380,
         300
       ]
     },
@@ -955,7 +942,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3380,
+        3640,
         300
       ]
     },
@@ -968,7 +955,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3380,
+        3640,
         1180
       ]
     },
@@ -981,7 +968,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3900,
+        4160,
         640
       ]
     },
@@ -994,7 +981,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4160,
+        4420,
         640
       ]
     },
@@ -1007,7 +994,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3120,
+        3380,
         520
       ]
     },
@@ -1020,7 +1007,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3380,
+        3640,
         520
       ]
     },
@@ -1033,7 +1020,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3380,
+        3640,
         980
       ]
     },
@@ -1046,7 +1033,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3900,
+        4160,
         820
       ]
     },
@@ -1059,7 +1046,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4160,
+        4420,
         820
       ]
     },
@@ -1076,7 +1063,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        4420,
+        4680,
         640
       ],
       "continueOnFail": true
@@ -1087,7 +1074,7 @@
       "main": [
         [
           {
-            "node": "Normalize Telegram Update",
+            "node": "Ensure Bot DB Schema",
             "type": "main",
             "index": 0
           }
@@ -1098,7 +1085,7 @@
       "main": [
         [
           {
-            "node": "Ensure Bot DB Schema",
+            "node": "Restore Normalized Telegram Update",
             "type": "main",
             "index": 0
           }
@@ -1109,7 +1096,7 @@
       "main": [
         [
           {
-            "node": "Restore Normalized Telegram Update",
+            "node": "Load Bot Settings",
             "type": "main",
             "index": 0
           }
@@ -1847,6 +1834,17 @@
     "Reset Dialog State After Failure": {
       "main": [
         []
+      ]
+    },
+    "Load Bot Settings": {
+      "main": [
+        [
+          {
+            "node": "Normalize Telegram Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },

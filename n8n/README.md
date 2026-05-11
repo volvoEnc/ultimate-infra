@@ -106,27 +106,29 @@ Create these n8n credentials manually after import:
 - PostgreSQL credential pointing at the bot business database, not the n8n internal database;
 - HTTP Header Auth credential for ElevenLabs with header name `xi-api-key` and the ElevenLabs API key as the value.
 
-Attach credentials to the matching Telegram, PostgreSQL, and HTTP Request nodes in the workflow. Name the ElevenLabs HTTP Header Auth credential `ElevenLabs API Key`, or update the imported workflow nodes to match your credential name.
+Attach credentials to the matching Telegram, PostgreSQL, and HTTP Request nodes in the workflow. The committed workflow intentionally does not include credential IDs because n8n treats exported IDs as real database records; placeholder IDs turn into very sincere runtime failures. Name the ElevenLabs HTTP Header Auth credential `ElevenLabs API Key`, then select it manually in every ElevenLabs HTTP Request node.
 
-Dynamic inline keyboards, including `/agents`, are sent through Telegram Bot API HTTP calls. n8n's native Telegram node stores inline keyboard rows as a fixedCollection shape, and that shape does not handle dynamic rows cleanly without the sort of ceremony usually reserved for minor court intrigues. Keep using the Telegram API credential for trigger and plain Telegram nodes, but set the HTTP base URL in the workflow settings below.
+Dynamic inline keyboards, including `/agents`, are sent through Telegram Bot API HTTP calls. n8n's native Telegram node stores inline keyboard rows as a fixedCollection shape, and that shape does not handle dynamic rows cleanly without the sort of ceremony usually reserved for minor court intrigues. Keep using the Telegram API credential for trigger and plain Telegram nodes, but store the HTTP base URL in the bot business database.
 
-Open the `Normalize Telegram Update` node and edit the `workflowSettings` object at the top of the code before publishing the workflow:
+The workflow creates a singleton `bot_settings` table in the bot business database. After the workflow has run once, or after you create the table manually from the workflow SQL, set the runtime values there:
 
-```js
-const workflowSettings = {
-  botAccessPassword: 'send-this-password-to-test-users',
-  telegramBotApiBaseUrl: 'https://api.telegram.org/bot<token>',
-  maxAgentsPerUser: 3,
-  defaultPrompt: 'You are a helpful voice assistant.',
-  defaultWelcome: 'Hello, how can I help you today?',
-  defaultLanguage: 'en',
-  defaultVoiceId: 'cjVigY5qzO86Huf0OWal',
-  defaultTtsModelId: 'eleven_turbo_v2',
-  defaultLlm: 'gpt-4o-mini',
-};
+```sql
+UPDATE bot_settings
+SET
+  bot_access_password = 'send-this-password-to-test-users',
+  telegram_bot_api_base_url = 'https://api.telegram.org/bot<token>',
+  max_agents_per_user = 3,
+  default_agent_prompt = 'You are a helpful voice assistant.',
+  default_agent_welcome = 'Hello, how can I help you today?',
+  default_agent_language = 'en',
+  default_agent_voice_id = 'cjVigY5qzO86Huf0OWal',
+  default_agent_tts_model_id = 'eleven_turbo_v2',
+  default_agent_llm = 'gpt-4o-mini',
+  updated_at = now()
+WHERE id = 1;
 ```
 
-The workflow deliberately does not read these values through `process.env`: n8n 2.x runs Code nodes in task runners and may block environment access there by default. Do not commit or share workflow exports containing the real `botAccessPassword`, Telegram bot token, or ElevenLabs API key. Yes, this is the unromantic part where secrets punish optimism.
+The access password is compared inside the `Load Bot Settings` SQL query and is not passed into later Code nodes. The workflow deliberately does not read these values through `process.env`: n8n 2.x runs Code nodes in task runners and may block environment access there by default. Do not commit DB dumps or workflow exports containing real Telegram or ElevenLabs secrets. Yes, this is the unromantic part where secrets punish optimism.
 
 The bot intentionally accepts only text messages for agent names, prompt updates, welcome message updates, and knowledge content. Files, voice messages, and other Telegram payloads receive a text-only error reply rather than being sent to ElevenLabs.
 

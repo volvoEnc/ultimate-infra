@@ -44,6 +44,11 @@ if grep -F '$env.' "$WORKFLOW_PATH" >/dev/null; then
   exit 1
 fi
 
+if grep -E '__[A-Z0-9_]+CREDENTIAL_ID__' "$WORKFLOW_PATH" >/dev/null; then
+  echo "Workflow must not contain placeholder credential IDs; attach credentials after import." >&2
+  exit 1
+fi
+
 if jq -e '.. | objects | select(.name? == "BOT_ACCESS_PASSWORD" and has("value") and ((.value | type) != "string" or (.value | startswith("={{") | not)))' "$WORKFLOW_PATH" >/dev/null; then
   echo "Workflow appears to contain a literal access password value." >&2
   exit 1
@@ -52,6 +57,7 @@ fi
 required_nodes=(
   "Normalize Telegram Update"
   "Ensure Bot DB Schema"
+  "Load Bot Settings"
   "Load User Context"
   "Route Telegram Event"
   "Route Switch"
@@ -112,12 +118,16 @@ done
 jq -e '[.nodes[] | select(.type == "n8n-nodes-base.postgres")] | length >= 6' "$WORKFLOW_PATH" >/dev/null
 jq -e '[.nodes[] | select(.type == "n8n-nodes-base.httpRequest")] | length >= 5' "$WORKFLOW_PATH" >/dev/null
 jq -e '[.nodes[] | select(.type == "n8n-nodes-base.code")] | length >= 3' "$WORKFLOW_PATH" >/dev/null
-jq -e '.nodes[] | select(.name == "Normalize Telegram Update") | .parameters.jsCode | contains("workflowSettings") and contains("botAccessPassword") and contains("telegramBotApiBaseUrl")' "$WORKFLOW_PATH" >/dev/null
+jq -e '.nodes[] | select(.name == "Ensure Bot DB Schema") | .parameters.query | contains("CREATE TABLE IF NOT EXISTS bot_settings") and contains("INSERT INTO bot_settings (id)") and contains("SELECT true AS schema_ready")' "$WORKFLOW_PATH" >/dev/null
+jq -e '.nodes[] | select(.name == "Load Bot Settings") | .parameters.query | contains("access_password_configured") and contains("access_password_matched") and contains("telegram_bot_api_base_url") and contains("FROM bot_settings")' "$WORKFLOW_PATH" >/dev/null
+jq -e '.nodes[] | select(.name == "Normalize Telegram Update") | .parameters.jsCode | contains("botSettings") and contains("access_password_matched") and contains("telegram_bot_api_base_url")' "$WORKFLOW_PATH" >/dev/null
+jq -e '.connections["Telegram Trigger"].main[0] | map(.node) | index("Ensure Bot DB Schema")' "$WORKFLOW_PATH" >/dev/null
+jq -e '.connections["Ensure Bot DB Schema"].main[0] | map(.node) | index("Load Bot Settings")' "$WORKFLOW_PATH" >/dev/null
+jq -e '.connections["Load Bot Settings"].main[0] | map(.node) | index("Normalize Telegram Update")' "$WORKFLOW_PATH" >/dev/null
 jq -e '.nodes[] | select(.name == "Send Telegram Keyboard Message") | .parameters.url | contains("settings.telegramBotApiBaseUrl")' "$WORKFLOW_PATH" >/dev/null
 jq -e '.nodes[] | select(.name == "Create ElevenLabs Agent") | .parameters.method == "POST"' "$WORKFLOW_PATH" >/dev/null
 jq -e '.nodes[] | select(.name == "Create ElevenLabs Agent") | .parameters.url == "https://api.elevenlabs.io/v1/convai/agents/create"' "$WORKFLOW_PATH" >/dev/null
 jq -e '.nodes[] | select(.name == "Create ElevenLabs Agent") | .parameters.authentication == "genericCredentialType" and .parameters.genericAuthType == "httpHeaderAuth"' "$WORKFLOW_PATH" >/dev/null
-jq -e '.nodes[] | select(.name == "Create ElevenLabs Agent") | .credentials.httpHeaderAuth.name == "ElevenLabs API Key"' "$WORKFLOW_PATH" >/dev/null
 jq -e '.nodes[] | select(.name == "Reserve Agent Slot") | .parameters.query | contains("FOR UPDATE")' "$WORKFLOW_PATH" >/dev/null
 jq -e '.nodes[] | select(.name == "Reserve Agent Slot") | .parameters.query | contains("interval '"'"'15 minutes'"'"'")' "$WORKFLOW_PATH" >/dev/null
 jq -e '.nodes[] | select(.name == "Get ElevenLabs Agent") | .parameters.method == "GET" and .parameters.authentication == "genericCredentialType"' "$WORKFLOW_PATH" >/dev/null
@@ -125,9 +135,9 @@ jq -e '.nodes[] | select(.name == "Patch ElevenLabs Agent") | .parameters.method
 jq -e '.nodes[] | select(.name == "Save Agent Update") | .parameters.query | contains("user_id = (SELECT id FROM bot_user)")' "$WORKFLOW_PATH" >/dev/null
 jq -e '.nodes[] | select(.name == "Validate Agent Update Ownership") | .parameters.query | contains("FOR UPDATE")' "$WORKFLOW_PATH" >/dev/null
 jq -e '.nodes[] | select(.name == "Validate Agent Update Ownership") | .parameters.query | contains("validated_agent")' "$WORKFLOW_PATH" >/dev/null
-jq -e '.nodes[] | select(.name == "Patch ElevenLabs Agent") | .parameters.genericAuthType == "httpHeaderAuth" and .credentials.httpHeaderAuth.name == "ElevenLabs API Key"' "$WORKFLOW_PATH" >/dev/null
+jq -e '.nodes[] | select(.name == "Patch ElevenLabs Agent") | .parameters.genericAuthType == "httpHeaderAuth"' "$WORKFLOW_PATH" >/dev/null
 jq -e '.nodes[] | select(.name == "Create Knowledge Document") | .parameters.method == "POST" and .parameters.url == "https://api.elevenlabs.io/v1/convai/knowledge-base/text"' "$WORKFLOW_PATH" >/dev/null
-jq -e '.nodes[] | select(.name == "Create Knowledge Document") | .parameters.genericAuthType == "httpHeaderAuth" and .credentials.httpHeaderAuth.name == "ElevenLabs API Key"' "$WORKFLOW_PATH" >/dev/null
+jq -e '.nodes[] | select(.name == "Create Knowledge Document") | .parameters.genericAuthType == "httpHeaderAuth"' "$WORKFLOW_PATH" >/dev/null
 jq -e '.nodes[] | select(.name == "Build ElevenLabs Patch") | .parameters.jsCode | contains("knowledge_base") and contains("usage_mode")' "$WORKFLOW_PATH" >/dev/null
 jq -e '.nodes[] | select(.name == "Save Agent Update") | .parameters.query | contains("knowledge_document_id")' "$WORKFLOW_PATH" >/dev/null
 jq -e '.nodes[] | select(.name == "Delete Old Knowledge Document") | .parameters.method == "DELETE"' "$WORKFLOW_PATH" >/dev/null
