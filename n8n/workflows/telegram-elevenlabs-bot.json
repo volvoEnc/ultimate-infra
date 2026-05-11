@@ -53,7 +53,7 @@
         "operation": "executeQuery",
         "query": "SELECT\n  (bot_access_password <> '') AS access_password_configured,\n  (bot_access_password <> '' AND bot_access_password = $1) AS access_password_matched,\n  telegram_bot_api_base_url,\n  max_agents_per_user,\n  default_agent_prompt,\n  default_agent_welcome,\n  default_agent_language,\n  default_agent_voice_id,\n  default_agent_tts_model_id,\n  default_agent_llm\nFROM bot_settings\nWHERE id = 1;",
         "options": {
-          "queryReplacement": "={{ typeof $('Telegram Trigger').first().json.message?.text === 'string' ? $('Telegram Trigger').first().json.message.text.trim() : '' }}"
+          "queryReplacement": "={{ [typeof $('Telegram Trigger').first().json.message?.text === 'string' ? $('Telegram Trigger').first().json.message.text.trim() : ''] }}"
         }
       },
       "id": "b5d7c5e2-19bb-44b7-9f5c-f026e5de5ad0",
@@ -83,7 +83,7 @@
         "operation": "executeQuery",
         "query": "WITH bot_user AS (\n  SELECT *\n  FROM telegram_users\n  WHERE telegram_user_id = $1\n),\nagent_rows AS (\n  SELECT\n    a.id,\n    a.elevenlabs_agent_id,\n    a.display_name,\n    a.knowledge_document_id,\n    a.prompt_text,\n    a.welcome_text,\n    a.status,\n    a.created_at,\n    (a.id = (SELECT active_agent_id FROM bot_user)) AS is_active\n  FROM elevenlabs_agents a\n  WHERE a.user_id = (SELECT id FROM bot_user)\n    AND a.status = 'active'\n  ORDER BY a.created_at ASC\n),\nactive_agent AS (\n  SELECT *\n  FROM agent_rows\n  WHERE is_active\n  LIMIT 1\n)\nSELECT\n  COALESCE(to_jsonb((SELECT row_to_json(bot_user) FROM bot_user)), 'null'::jsonb) AS user_record,\n  COALESCE((SELECT jsonb_agg(to_jsonb(agent_rows)) FROM agent_rows), '[]'::jsonb) AS agents,\n  COALESCE(to_jsonb((SELECT row_to_json(active_agent) FROM active_agent)), 'null'::jsonb) AS active_agent;",
         "options": {
-          "queryReplacement": "={{ $json.telegramUserId }}"
+          "queryReplacement": "={{ [$json.telegramUserId] }}"
         }
       },
       "id": "23c32255-93df-45fd-9295-725cb08a3f24",
@@ -428,7 +428,7 @@
         "operation": "executeQuery",
         "query": "WITH bot_user AS (\n  SELECT *\n  FROM telegram_users\n  WHERE telegram_user_id = $1\n),\nagent_rows AS (\n  SELECT\n    a.id,\n    a.elevenlabs_agent_id,\n    a.display_name,\n    a.knowledge_document_id,\n    a.prompt_text,\n    a.welcome_text,\n    a.status,\n    a.created_at,\n    (a.id = (SELECT active_agent_id FROM bot_user)) AS is_active\n  FROM elevenlabs_agents a\n  WHERE a.user_id = (SELECT id FROM bot_user)\n    AND a.status = 'active'\n  ORDER BY a.created_at ASC\n),\nactive_agent AS (\n  SELECT *\n  FROM agent_rows\n  WHERE is_active\n  LIMIT 1\n)\nSELECT\n  COALESCE(to_jsonb((SELECT row_to_json(bot_user) FROM bot_user)), 'null'::jsonb) AS user_record,\n  COALESCE((SELECT jsonb_agg(to_jsonb(agent_rows)) FROM agent_rows), '[]'::jsonb) AS agents,\n  COALESCE(to_jsonb((SELECT row_to_json(active_agent) FROM active_agent)), 'null'::jsonb) AS active_agent;",
         "options": {
-          "queryReplacement": "={{ $json.telegramUserId || $json.telegram_user_id }}"
+          "queryReplacement": "={{ [$json.telegramUserId || $json.telegram_user_id] }}"
         }
       },
       "id": "6ab8b69e-00f5-45f6-b3cc-acd293a70677",
@@ -597,7 +597,7 @@
         "operation": "executeQuery",
         "query": "WITH bot_user AS (\n  SELECT *\n  FROM telegram_users\n  WHERE telegram_user_id = $1\n),\nagent_rows AS (\n  SELECT\n    a.id,\n    a.elevenlabs_agent_id,\n    a.display_name,\n    a.knowledge_document_id,\n    a.prompt_text,\n    a.welcome_text,\n    a.status,\n    a.created_at,\n    (a.id = (SELECT active_agent_id FROM bot_user)) AS is_active\n  FROM elevenlabs_agents a\n  WHERE a.user_id = (SELECT id FROM bot_user)\n    AND a.status = 'active'\n  ORDER BY a.created_at ASC\n),\nactive_agent AS (\n  SELECT *\n  FROM agent_rows\n  WHERE is_active\n  LIMIT 1\n)\nSELECT\n  COALESCE(to_jsonb((SELECT row_to_json(bot_user) FROM bot_user)), 'null'::jsonb) AS user_record,\n  COALESCE((SELECT jsonb_agg(to_jsonb(agent_rows)) FROM agent_rows), '[]'::jsonb) AS agents,\n  COALESCE(to_jsonb((SELECT row_to_json(active_agent) FROM active_agent)), 'null'::jsonb) AS active_agent;",
         "options": {
-          "queryReplacement": "={{ $json.telegramUserId || $json.telegram_user_id }}"
+          "queryReplacement": "={{ [$json.telegramUserId || $json.telegram_user_id] }}"
         }
       },
       "id": "56e375f1-11ce-4c88-90da-e7bbacff113f",
@@ -1055,7 +1055,7 @@
         "operation": "executeQuery",
         "query": "UPDATE telegram_users\nSET\n  dialog_state = 'idle',\n  updated_at = now()\nWHERE telegram_user_id = $1\nRETURNING telegram_user_id;",
         "options": {
-          "queryReplacement": "={{ $json.telegramUserId || $json.telegram_user_id }}"
+          "queryReplacement": "={{ [$json.telegramUserId || $json.telegram_user_id] }}"
         }
       },
       "id": "eaaaf62e-5d51-4625-b5c8-33757d9fe8ac",

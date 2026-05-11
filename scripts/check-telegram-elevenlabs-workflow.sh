@@ -125,6 +125,8 @@ jq -e '[.nodes[] | select(.type == "n8n-nodes-base.httpRequest")] | length >= 5'
 jq -e '[.nodes[] | select(.type == "n8n-nodes-base.code")] | length >= 3' "$WORKFLOW_PATH" >/dev/null
 jq -e '.nodes[] | select(.name == "Ensure Bot DB Schema") | .parameters.query | contains("CREATE TABLE IF NOT EXISTS bot_settings") and contains("INSERT INTO bot_settings (id)") and contains("SELECT true AS schema_ready")' "$WORKFLOW_PATH" >/dev/null
 jq -e '.nodes[] | select(.name == "Load Bot Settings") | .parameters.query | contains("access_password_configured") and contains("access_password_matched") and contains("telegram_bot_api_base_url") and contains("FROM bot_settings")' "$WORKFLOW_PATH" >/dev/null
+jq -e '.nodes[] | select(.name == "Load Bot Settings") | .parameters.options.queryReplacement | startswith("={{ [")' "$WORKFLOW_PATH" >/dev/null
+jq -e '.nodes[] | select(.name == "Load User Context") | .parameters.options.queryReplacement | startswith("={{ [")' "$WORKFLOW_PATH" >/dev/null
 jq -e '.nodes[] | select(.name == "Normalize Telegram Update") | .parameters.jsCode | contains("botSettings") and contains("access_password_matched") and contains("telegram_bot_api_base_url")' "$WORKFLOW_PATH" >/dev/null
 jq -e '.connections["Telegram Trigger"].main[0] | map(.node) | index("Ensure Bot DB Schema")' "$WORKFLOW_PATH" >/dev/null
 jq -e '.connections["Ensure Bot DB Schema"].main[0] | map(.node) | index("Load Bot Settings")' "$WORKFLOW_PATH" >/dev/null
