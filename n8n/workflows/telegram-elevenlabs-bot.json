@@ -1,0 +1,114 @@
+{
+  "name": "Telegram ElevenLabs Bot",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "id": "3ee2658c-b953-4d7d-9b2b-22a0d7ac0cd3",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "f4e0c05a-8b44-4d07-9f0f-a47b6d4bfbf0"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "6f940ed6-ef79-4c5d-ae89-d4b80bf902a4",
+              "name": "chatId",
+              "value": "={{ $json.message.chat.id }}",
+              "type": "string"
+            },
+            {
+              "id": "ba8df1ef-7a9c-4e7a-9a04-4a75a95df4d4",
+              "name": "messageId",
+              "value": "={{ $json.message.message_id }}",
+              "type": "number"
+            },
+            {
+              "id": "42ee81ab-5f04-46a4-8c6c-11f4a23bb09c",
+              "name": "messageText",
+              "value": "={{ $json.message.text || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "447acbc0-22c3-42a0-9fa8-b524ed8ed7e2",
+              "name": "replyText",
+              "value": "={{ ($json.message.text || '').trim().split(/\\s+/)[0] === '/start' ? 'Привет! Я готов к работе. Голосовую часть подключим на следующем этапе.' : 'Сообщение получил. Голосовую часть подключим на следующем этапе.' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "76d692cc-404b-406d-b038-a44ac2fe18f9",
+      "name": "Prepare Telegram Reply",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        260,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.replyText }}",
+        "replyMarkup": "none",
+        "additionalFields": {
+          "appendAttribution": false,
+          "reply_to_message_id": "={{ $json.messageId }}"
+        }
+      },
+      "id": "edac524e-b1a5-41d2-b9e0-d066e0f42021",
+      "name": "Reply in Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        520,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Prepare Telegram Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Telegram Reply": {
+      "main": [
+        [
+          {
+            "node": "Reply in Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "active": false
+}

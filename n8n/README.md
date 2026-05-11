@@ -56,17 +56,24 @@ Open `https://<N8N_HOST>/` and complete n8n owner setup.
 ./scripts/restart.sh n8n
 ```
 
-## Workflow smoke import
+## Telegram bot workflow import
 
 The `workflows/` directory is mounted into the container as `/workflows`.
 
-Import the committed smoke workflow:
+Import the committed Telegram bot workflow:
 
 ```bash
 ./scripts/import-n8n-workflows.sh
 ```
 
-Open n8n and check that `Smoke Test From Git` exists. Run it manually; the last node should return `smoke=true` and `source=git`.
+Open n8n and check that `Telegram ElevenLabs Bot` exists. Create a Telegram API credential with the bot token from BotFather, attach it to both Telegram nodes, then activate the workflow.
+
+The first version handles incoming Telegram messages only:
+
+- `/start` replies with the default welcome text.
+- any other message gets a default "message received" reply.
+
+ElevenLabs integration is intentionally left for the next workflow step, after the Telegram entry point is stable.
 
 Export current workflows for inspection:
 
