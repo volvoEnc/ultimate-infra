@@ -11,6 +11,7 @@
 - `admin/` — Portainer и Dozzle для оперативного управления и просмотра логов.
 - `uptime/` — Uptime Kuma для внешних healthchecks и мониторинга доступности.
 - `centrifugo/` — Centrifugo для realtime/WebSocket, с публичным endpoint через Traefik и внутренними `/api`, `/health`, `/metrics`.
+- `n8n/` — self-hosted workflow automation через Traefik и shared PostgreSQL.
 - `deployments/app-template/` — шаблон приложения с `app`, `worker`, `cron`, `env_file`, healthcheck и Traefik labels.
 - `env/` — каталог для реальных env-файлов по окружениям, без коммита в git.
 - `scripts/` — bash-скрипты для инициализации сервера, деплоя, логов и резервных копий.
@@ -36,6 +37,7 @@
    cp admin/.env.example admin/.env
    cp uptime/.env.example uptime/.env
    cp centrifugo/.env.example centrifugo/.env
+   cp n8n/.env.example n8n/.env
    ```
 
 5. Если нужен приватный Registry, создайте `htpasswd` файл, например:
@@ -57,6 +59,7 @@
    make up-admin
    make up-uptime
    make up-centrifugo
+   make up-n8n
    ```
 
    Если запускаете stack вручную не из его каталога, передавайте `--env-file`, например:
@@ -66,6 +69,7 @@
    ```
 
    После `make up-postgres` UI PostgreSQL будет доступен по `https://<ADMINER_HOST>/`.
+   После `make up-n8n` n8n будет доступен по `https://<N8N_HOST>/`.
 
 8. Скопируйте шаблон приложения:
 
@@ -146,6 +150,7 @@
 - Для всех инфраструктурных stack'ов включён Docker log rotation через `json-file`.
 - Gateway и приложения подключаются к общей external network `proxy`.
 - Приложения и PostgreSQL подключаются к общей external network `data`.
+- n8n использует отдельную PostgreSQL базу в shared `infra-postgres` и named volume `n8n-data`.
 - Приватные сервисы общаются по внутренним сетям stack'ов.
 - Секреты не захардкожены и не хранятся в git.
 
@@ -165,6 +170,7 @@ make up-observability
 make up-admin
 make up-uptime
 make up-centrifugo
+make up-n8n
 make deploy APP=app1 ENV=prod
 make logs APP=app1 ENV=prod
 make status
@@ -183,3 +189,4 @@ make status
 - `docs/backup-restore.md`
 - `docs/observability.md`
 - `centrifugo/README.md`
+- `n8n/README.md`

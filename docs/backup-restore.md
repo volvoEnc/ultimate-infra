@@ -9,6 +9,7 @@
 - volume `gateway-letsencrypt`;
 - volume `postgres-data`;
 - volume `registry-data`;
+- volume `n8n-data` plus the dedicated n8n PostgreSQL database;
 - volumes Grafana, Prometheus, Loki и Portainer.
 
 ## Как часто
@@ -31,6 +32,7 @@
 ./scripts/backup-volumes.sh --stack gateway
 ./scripts/backup-volumes.sh --stack postgres
 ./scripts/backup-volumes.sh --stack registry
+./scripts/backup-volumes.sh --stack n8n
 ./scripts/backup-volumes.sh --stack app1 prod
 ```
 
@@ -46,6 +48,8 @@
 - внутри должны быть ожидаемые env-файлы или данные volume;
 - после тестового восстановления проверяйте права доступа;
 - после restore запускайте `./scripts/healthcheck.sh`.
+
+Для n8n backup volume не заменяет backup PostgreSQL: workflows, credentials и executions хранятся в выделенной базе shared PostgreSQL. Перед обновлениями n8n сохраняйте `n8n-data`, env и дамп базы.
 
 ## Практика восстановления
 
