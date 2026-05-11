@@ -44,7 +44,7 @@ jq -e '[.nodes[] | select(.type == "n8n-nodes-base.postgres")] | length >= 6' "$
 jq -e '[.nodes[] | select(.type == "n8n-nodes-base.httpRequest")] | length >= 5' "$WORKFLOW_PATH" >/dev/null
 jq -e '[.nodes[] | select(.type == "n8n-nodes-base.code")] | length >= 3' "$WORKFLOW_PATH" >/dev/null
 
-if grep -E 'xi-api-key"[[:space:]]*:[[:space:]]*"[^=]' "$WORKFLOW_PATH" >/dev/null; then
+if jq -e '.. | objects | select(has("xi-api-key") and ((.["xi-api-key"] | type) != "string" or (.["xi-api-key"] | startswith("={{") | not)))' "$WORKFLOW_PATH" >/dev/null; then
   echo "Workflow appears to contain a literal ElevenLabs API key header." >&2
   exit 1
 fi
