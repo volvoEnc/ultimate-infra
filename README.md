@@ -79,6 +79,7 @@
 
    После `make up-postgres` UI PostgreSQL будет доступен по `https://<ADMINER_HOST>/`.
    После `make up-n8n` n8n будет доступен по `https://<N8N_HOST>/`.
+   Коммитнутые n8n workflows импортируются одной командой: `make import-n8n-workflows`.
 
 9. Скопируйте шаблон приложения:
 
@@ -180,6 +181,7 @@ make up-admin
 make up-uptime
 make up-centrifugo
 make up-n8n
+make import-n8n-workflows
 make deploy APP=app1 ENV=prod
 make logs APP=app1 ENV=prod
 make status

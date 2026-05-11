@@ -60,10 +60,25 @@ Open `https://<N8N_HOST>/` and complete n8n owner setup.
 
 The `workflows/` directory is mounted into the container as `/workflows`.
 
-Import the committed Telegram bot workflow:
+Import all committed workflows:
 
 ```bash
-./scripts/import-n8n-workflows.sh
+make import-n8n-workflows
+```
+
+The import command starts n8n if needed, waits for the container healthcheck, imports each JSON file from `n8n/workflows/` explicitly, and restarts n8n so the running instance sees the imported workflows.
+
+To import a single workflow:
+
+```bash
+./scripts/import-n8n-workflows.sh telegram-elevenlabs-bot
+```
+
+If your n8n instance uses projects and the imported workflow is not visible in the UI, set one of these values in `n8n/.env` and rerun the import:
+
+```bash
+N8N_IMPORT_PROJECT_ID=<project-id>
+N8N_IMPORT_USER_ID=<user-id>
 ```
 
 Open n8n and check that `Telegram ElevenLabs Bot` exists. Create a Telegram API credential with the bot token from BotFather, attach it to both Telegram nodes, then activate the workflow.
