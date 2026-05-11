@@ -65,11 +65,14 @@ required_nodes=(
   "Build Agent Ownership Error Reply"
   "Restore Validated Agent Update Context"
   "Get ElevenLabs Agent"
+  "Filter Direct Agent Patch"
+  "Build Knowledge Document Request"
   "Create Knowledge Document"
   "Build ElevenLabs Patch"
   "Patch ElevenLabs Agent"
   "Save Agent Update"
   "Build Agent Update Reply"
+  "Prepare Old Knowledge Deletion"
   "Delete Old Knowledge Document"
   "Log Bot Event"
   "Answer Callback Query"
@@ -98,5 +101,15 @@ jq -e '.nodes[] | select(.name == "Save Agent Update") | .parameters.query | con
 jq -e '.nodes[] | select(.name == "Validate Agent Update Ownership") | .parameters.query | contains("FOR UPDATE")' "$WORKFLOW_PATH" >/dev/null
 jq -e '.nodes[] | select(.name == "Validate Agent Update Ownership") | .parameters.query | contains("validated_agent")' "$WORKFLOW_PATH" >/dev/null
 jq -e '.nodes[] | select(.name == "Patch ElevenLabs Agent") | .parameters.genericAuthType == "httpHeaderAuth" and .credentials.httpHeaderAuth.name == "ElevenLabs API Key"' "$WORKFLOW_PATH" >/dev/null
+jq -e '.nodes[] | select(.name == "Create Knowledge Document") | .parameters.method == "POST" and .parameters.url == "https://api.elevenlabs.io/v1/convai/knowledge-base/text"' "$WORKFLOW_PATH" >/dev/null
+jq -e '.nodes[] | select(.name == "Create Knowledge Document") | .parameters.genericAuthType == "httpHeaderAuth" and .credentials.httpHeaderAuth.name == "ElevenLabs API Key"' "$WORKFLOW_PATH" >/dev/null
+jq -e '.nodes[] | select(.name == "Build ElevenLabs Patch") | .parameters.jsCode | contains("knowledge_base") and contains("usage_mode")' "$WORKFLOW_PATH" >/dev/null
+jq -e '.nodes[] | select(.name == "Save Agent Update") | .parameters.query | contains("knowledge_document_id")' "$WORKFLOW_PATH" >/dev/null
+jq -e '.nodes[] | select(.name == "Delete Old Knowledge Document") | .parameters.method == "DELETE"' "$WORKFLOW_PATH" >/dev/null
+jq -e '.nodes[] | select(.name == "Delete Old Knowledge Document") | .parameters.options.neverError == true' "$WORKFLOW_PATH" >/dev/null
+if jq -e '.nodes[] | select(.name == "Delete Old Knowledge Document") | .parameters.url | contains("force=true")' "$WORKFLOW_PATH" >/dev/null; then
+  echo "Old knowledge document cleanup must not force-delete shared documents." >&2
+  exit 1
+fi
 
 echo "Telegram ElevenLabs workflow validation passed."

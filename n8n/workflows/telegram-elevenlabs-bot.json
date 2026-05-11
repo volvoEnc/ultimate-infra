@@ -677,14 +677,14 @@
     },
     {
       "parameters": {
-        "jsCode": "const route = $('Restore Validated Agent Update Context').item.json;\nconst activeAgent = route.activeAgent;\nconst currentConfig = structuredClone($json.conversation_config ?? {});\ncurrentConfig.agent = currentConfig.agent ?? {};\n\nconst routeToKind = {\n  update_prompt: 'prompt',\n  update_welcome: 'welcome',\n};\nconst updateKind = routeToKind[route.route];\nconst newText = String(route.newText ?? '').trim();\n\nif (!updateKind) {\n  throw new Error(`Unsupported ElevenLabs patch route: ${route.route}`);\n}\n\nif (!activeAgent?.id || !activeAgent.elevenlabs_agent_id) {\n  throw new Error('Cannot update ElevenLabs agent without an active user-owned agent.');\n}\n\nif (!newText) {\n  throw new Error('Cannot update ElevenLabs agent with empty text.');\n}\n\nif (updateKind === 'prompt') {\n  currentConfig.agent.prompt = {\n    ...(currentConfig.agent.prompt ?? {}),\n    prompt: newText,\n  };\n} else {\n  currentConfig.agent.first_message = newText;\n}\n\nconst elevenLabsPatchBody = {\n  conversation_config: currentConfig,\n};\n\nreturn [{\n  json: {\n    ...route,\n    activeAgent,\n    updateKind,\n    newText,\n    elevenLabsPatchBody,\n  },\n}];"
+        "jsCode": "const route = $('Restore Validated Agent Update Context').item.json;\nconst activeAgent = route.activeAgent;\nconst fetchedAgent = $('Get ElevenLabs Agent').item.json;\nconst currentConfig = structuredClone(fetchedAgent.conversation_config ?? {});\ncurrentConfig.agent = currentConfig.agent ?? {};\ncurrentConfig.agent.prompt = currentConfig.agent.prompt ?? {};\n\nconst routeToKind = {\n  update_prompt: 'prompt',\n  update_welcome: 'welcome',\n  update_knowledge: 'knowledge',\n};\nconst updateKind = routeToKind[route.route];\nconst newText = String(route.newText ?? '').trim();\n\nif (!updateKind) {\n  throw new Error(`Unsupported ElevenLabs patch route: ${route.route}`);\n}\n\nif (!activeAgent?.id || !activeAgent.elevenlabs_agent_id) {\n  throw new Error('Cannot update ElevenLabs agent without an active user-owned agent.');\n}\n\nif (!newText) {\n  throw new Error('Cannot update ElevenLabs agent with empty text.');\n}\n\nlet newKnowledgeDocumentId = '';\nlet newKnowledgeDocumentName = '';\nlet previousKnowledgeDocumentId = activeAgent.knowledge_document_id ?? '';\n\nif (updateKind === 'prompt') {\n  currentConfig.agent.prompt = {\n    ...(currentConfig.agent.prompt ?? {}),\n    prompt: newText,\n  };\n} else if (updateKind === 'welcome') {\n  currentConfig.agent.first_message = newText;\n} else {\n  const document = $('Create Knowledge Document').item.json;\n  if (!document?.id) {\n    throw new Error('ElevenLabs knowledge document was not created.');\n  }\n\n  newKnowledgeDocumentId = document.id;\n  newKnowledgeDocumentName = document.name ?? 'Telegram knowledge';\n\n  const existingKnowledge = currentConfig.agent.prompt.knowledge_base ?? currentConfig.agent.prompt.knowledgeBase ?? [];\n  const preservedKnowledge = Array.isArray(existingKnowledge)\n    ? existingKnowledge.filter((entry) => entry?.id && entry.id !== previousKnowledgeDocumentId)\n    : [];\n\n  currentConfig.agent.prompt.knowledge_base = [\n    ...preservedKnowledge,\n    {\n      type: 'text',\n      name: newKnowledgeDocumentName,\n      id: newKnowledgeDocumentId,\n      usage_mode: 'prompt',\n    },\n  ];\n  delete currentConfig.agent.prompt.knowledgeBase;\n}\n\nconst elevenLabsPatchBody = {\n  conversation_config: currentConfig,\n};\n\nreturn [{\n  json: {\n    ...route,\n    activeAgent,\n    updateKind,\n    newText,\n    previousKnowledgeDocumentId,\n    newKnowledgeDocumentId,\n    newKnowledgeDocumentName,\n    elevenLabsPatchBody,\n  },\n}];"
       },
       "id": "c15233d4-fcd0-4186-8c98-0aabf864d30a",
       "name": "Build ElevenLabs Patch",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2860,
+        3380,
         820
       ]
     },
@@ -704,7 +704,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        3120,
+        3640,
         820
       ],
       "credentials": {
@@ -717,9 +717,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH bot_user AS (\n  SELECT id, telegram_user_id\n  FROM telegram_users\n  WHERE telegram_user_id = $1\n),\nupdated_agent AS (\n  UPDATE elevenlabs_agents\n  SET\n    prompt_text = CASE WHEN $4 = 'prompt' THEN $3 ELSE prompt_text END,\n    welcome_text = CASE WHEN $4 = 'welcome' THEN $3 ELSE welcome_text END,\n    updated_at = now()\n  WHERE id = $2::bigint\n    AND user_id = (SELECT id FROM bot_user)\n    AND status = 'active'\n  RETURNING *\n),\nupdated_user AS (\n  UPDATE telegram_users\n  SET\n    dialog_state = 'idle',\n    updated_at = now()\n  WHERE id = (SELECT id FROM bot_user)\n    AND EXISTS (SELECT 1 FROM updated_agent)\n  RETURNING telegram_user_id\n)\nSELECT\n  updated_agent.*,\n  (SELECT telegram_user_id FROM updated_user) AS \"telegramUserId\"\nFROM updated_agent;",
+        "query": "WITH bot_user AS (\n  SELECT id, telegram_user_id\n  FROM telegram_users\n  WHERE telegram_user_id = $1\n),\nupdated_agent AS (\n  UPDATE elevenlabs_agents\n  SET\n    prompt_text = CASE WHEN $4 = 'prompt' THEN $3 ELSE prompt_text END,\n    welcome_text = CASE WHEN $4 = 'welcome' THEN $3 ELSE welcome_text END,\n    knowledge_document_id = CASE WHEN $4 = 'knowledge' THEN NULLIF($5, '') ELSE knowledge_document_id END,\n    updated_at = now()\n  WHERE id = $2::bigint\n    AND user_id = (SELECT id FROM bot_user)\n    AND status = 'active'\n  RETURNING *\n),\nupdated_user AS (\n  UPDATE telegram_users\n  SET\n    dialog_state = 'idle',\n    updated_at = now()\n  WHERE id = (SELECT id FROM bot_user)\n    AND EXISTS (SELECT 1 FROM updated_agent)\n  RETURNING telegram_user_id\n)\nSELECT\n  updated_agent.*,\n  (SELECT telegram_user_id FROM updated_user) AS \"telegramUserId\"\nFROM updated_agent;",
         "options": {
-          "queryReplacement": "={{ [$('Build ElevenLabs Patch').item.json.telegramUserId, $('Build ElevenLabs Patch').item.json.activeAgent.id, $('Build ElevenLabs Patch').item.json.newText, $('Build ElevenLabs Patch').item.json.updateKind] }}"
+          "queryReplacement": "={{ [$('Build ElevenLabs Patch').item.json.telegramUserId, $('Build ElevenLabs Patch').item.json.activeAgent.id, $('Build ElevenLabs Patch').item.json.newText, $('Build ElevenLabs Patch').item.json.updateKind, $('Build ElevenLabs Patch').item.json.newKnowledgeDocumentId || ''] }}"
         }
       },
       "id": "61830577-43fe-44d3-983d-56ba6b590894",
@@ -727,20 +727,20 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        3380,
+        3900,
         820
       ]
     },
     {
       "parameters": {
-        "jsCode": "const route = $('Build ElevenLabs Patch').item.json;\nconst saved = $('Save Agent Update').item.json;\n\nif (!saved?.id) {\n  throw new Error('Updated ElevenLabs agent was not saved locally for the current Telegram user.');\n}\n\nconst button = (text, data) => ({ text, callback_data: data });\nconst actionsKeyboard = () => ({\n  inline_keyboard: [\n    [button('Изменить prompt', 'ag:p')],\n    [button('Изменить приветствие', 'ag:w')],\n    [button('Обновить knowledge', 'ag:k')],\n    [button('Список агентов', 'ag:list')],\n  ],\n});\n\nconst label = route.updateKind === 'prompt' ? 'Prompt' : 'Приветствие';\n\nreturn [{\n  json: {\n    ...route,\n    savedAgent: saved,\n    replyText: `${label} обновлен.`,\n    replyMarkup: actionsKeyboard(),\n  },\n}];"
+        "jsCode": "const route = $('Build ElevenLabs Patch').item.json;\nconst saved = $('Save Agent Update').item.json;\n\nif (!saved?.id) {\n  throw new Error('Updated ElevenLabs agent was not saved locally for the current Telegram user.');\n}\n\nconst button = (text, data) => ({ text, callback_data: data });\nconst actionsKeyboard = () => ({\n  inline_keyboard: [\n    [button('Изменить prompt', 'ag:p')],\n    [button('Изменить приветствие', 'ag:w')],\n    [button('Обновить knowledge', 'ag:k')],\n    [button('Список агентов', 'ag:list')],\n  ],\n});\n\nconst labels = { prompt: 'Prompt', welcome: 'Приветствие', knowledge: 'Knowledge' };\nconst label = labels[route.updateKind] ?? 'Агент';\n\nreturn [{\n  json: {\n    ...route,\n    savedAgent: saved,\n    replyText: `${label} обновлен.`,\n    replyMarkup: actionsKeyboard(),\n  },\n}];"
       },
       "id": "3680e72a-a173-49bf-ab63-e8ec1c999b92",
       "name": "Build Agent Update Reply",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3640,
+        4160,
         820
       ]
     },
@@ -786,6 +786,96 @@
         2340,
         660
       ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const route = $('Restore Validated Agent Update Context').item.json;\nif (['update_prompt', 'update_welcome'].includes(route.route)) {\n  return [{ json: { ...route, currentAgentConfig: $json } }];\n}\nreturn [];"
+      },
+      "id": "c7f847f8-0f8e-4248-9bd7-80fc9a5f8dfb",
+      "name": "Filter Direct Agent Patch",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2860,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const route = $('Restore Validated Agent Update Context').item.json;\nif (route.route !== 'update_knowledge') {\n  return [];\n}\n\nconst activeAgent = route.activeAgent;\nconst text = String(route.newText ?? '').trim();\nif (!text) {\n  throw new Error('Cannot create an empty ElevenLabs knowledge document.');\n}\n\nconst safeAgentName = String(activeAgent.display_name ?? 'agent').slice(0, 60);\nconst timestamp = new Date().toISOString().replace(/[:.]/g, '-');\nconst knowledgeDocumentBody = {\n  text,\n  name: `${safeAgentName} knowledge ${timestamp}`,\n};\n\nreturn [{ json: { ...route, knowledgeDocumentBody } }];"
+      },
+      "id": "9add3645-37fe-4ca3-9a9d-5a0958c2f32f",
+      "name": "Build Knowledge Document Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2860,
+        980
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.elevenlabs.io/v1/convai/knowledge-base/text",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.knowledgeDocumentBody) }}",
+        "options": {}
+      },
+      "id": "c9622086-57a9-40c7-8d1c-e98572da5a11",
+      "name": "Create Knowledge Document",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3120,
+        980
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__ELEVENLABS_HTTP_HEADER_AUTH_CREDENTIAL_ID__",
+          "name": "ElevenLabs API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const route = $('Build ElevenLabs Patch').item.json;\nif (route.updateKind !== 'knowledge' || !route.previousKnowledgeDocumentId || route.previousKnowledgeDocumentId === route.newKnowledgeDocumentId) {\n  return [];\n}\n\nreturn [{\n  json: {\n    ...route,\n    oldKnowledgeDocumentId: route.previousKnowledgeDocumentId,\n  },\n}];"
+      },
+      "id": "a5b16a7a-c495-4caa-8315-f15333c2995e",
+      "name": "Prepare Old Knowledge Deletion",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4160,
+        1080
+      ]
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "={{ 'https://api.elevenlabs.io/v1/convai/knowledge-base/' + $json.oldKnowledgeDocumentId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "neverError": true
+        }
+      },
+      "id": "d5d279d6-ae32-4fb0-a2be-8831690489a6",
+      "name": "Delete Old Knowledge Document",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4420,
+        1080
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__ELEVENLABS_HTTP_HEADER_AUTH_CREDENTIAL_ID__",
+          "name": "ElevenLabs API Key"
+        }
+      }
     }
   ],
   "connections": {
@@ -946,7 +1036,7 @@
         ],
         [
           {
-            "node": "Pending ElevenLabs Action Reply",
+            "node": "Validate Agent Update Ownership",
             "type": "main",
             "index": 0
           }
@@ -1164,7 +1254,12 @@
       "main": [
         [
           {
-            "node": "Build ElevenLabs Patch",
+            "node": "Filter Direct Agent Patch",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build Knowledge Document Request",
             "type": "main",
             "index": 0
           }
@@ -1198,6 +1293,11 @@
         [
           {
             "node": "Build Agent Update Reply",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare Old Knowledge Deletion",
             "type": "main",
             "index": 0
           }
@@ -1252,6 +1352,50 @@
         [
           {
             "node": "Set Dialog State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Direct Agent Patch": {
+      "main": [
+        [
+          {
+            "node": "Build ElevenLabs Patch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Knowledge Document Request": {
+      "main": [
+        [
+          {
+            "node": "Create Knowledge Document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Knowledge Document": {
+      "main": [
+        [
+          {
+            "node": "Build ElevenLabs Patch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Old Knowledge Deletion": {
+      "main": [
+        [
+          {
+            "node": "Delete Old Knowledge Document",
             "type": "main",
             "index": 0
           }
