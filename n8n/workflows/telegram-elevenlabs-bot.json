@@ -93,7 +93,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const user = typeof $json.user_record === 'string' ? JSON.parse($json.user_record) : $json.user_record;\nconst agents = typeof $json.agents === 'string' ? JSON.parse($json.agents) : ($json.agents ?? []);\nconst activeAgent = typeof $json.active_agent === 'string' ? JSON.parse($json.active_agent) : $json.active_agent;\nconst settings = $json.settings ?? {};\nconst maxAgents = Number.isFinite(settings.maxAgentsPerUser) ? settings.maxAgentsPerUser : 3;\n\nconst button = (text, data) => ({ text, callback_data: data });\nconst agentsKeyboard = () => {\n  const rows = agents.map((agent) => [button(agent.is_active ? `✓ ${agent.display_name}` : agent.display_name, `ag:sel:${agent.id}`)]);\n  if (agents.length < maxAgents) rows.push([button('Создать агента', 'ag:new')]);\n  return { inline_keyboard: rows };\n};\nconst actionsKeyboard = () => ({\n  inline_keyboard: [\n    [button('Изменить prompt', 'ag:p')],\n    [button('Изменить приветствие', 'ag:w')],\n    [button('Обновить knowledge', 'ag:k')],\n    [button('Список агентов', 'ag:list')],\n  ],\n});\nconst menuText = () => [\n  'Доступ открыт.',\n  `Лимит агентов: ${maxAgents}.`,\n  'Команда /agents покажет список агентов и действия.',\n].join('\\n');\nconst reply = (route, text, extra = {}) => [{ json: { ...$json, route, replyText: text, replyMarkup: extra.replyMarkup ?? null, ...extra } }];\n\nif (!$json.telegramUserId || !$json.chatId) {\n  return reply('reply', 'Не вижу Telegram user id или chat id. Попробуйте отправить сообщение еще раз.');\n}\n\nif (!user) {\n  if (!$json.accessPasswordConfigured) {\n    return reply('reply', 'Доступ временно не настроен. Попробуйте позже.');\n  }\n  if ($json.isTextMessage && $json.accessPasswordMatched) {\n    return reply('register_user', menuText());\n  }\n  return reply('reply', 'Пришлите пароль доступа текстовым сообщением.');\n}\n\nif ($json.isCallback && $json.callbackData) {\n  if ($json.callbackData === 'ag:list') {\n    return reply('reply', agents.length ? 'Ваши агенты:' : 'У вас пока нет агентов.', { replyMarkup: agentsKeyboard(), answerCallback: true });\n  }\n  if ($json.callbackData === 'ag:new') {\n    if (agents.length >= maxAgents) {\n      return reply('reply', `Лимит агентов исчерпан: ${maxAgents}.`, { answerCallback: true });\n    }\n    return reply('set_state', 'Как назвать нового агента? Пришлите имя текстом.', { nextState: 'awaiting_agent_name', answerCallback: true });\n  }\n  if ($json.callbackData.startsWith('ag:sel:')) {\n    const localAgentId = Number.parseInt($json.callbackData.slice('ag:sel:'.length), 10);\n    const selected = agents.find((agent) => agent.id === localAgentId);\n    if (!selected) return reply('reply', 'Этот агент вам не принадлежит. Выберите агента через /agents.', { answerCallback: true });\n    return reply('set_active_agent', `Выбран агент: ${selected.display_name}`, { activeAgentId: localAgentId, replyMarkup: actionsKeyboard(), answerCallback: true });\n  }\n  if (['ag:p', 'ag:w', 'ag:k'].includes($json.callbackData)) {\n    if (!activeAgent?.id) return reply('reply', 'Сначала выберите агента через /agents.', { answerCallback: true });\n    const states = { 'ag:p': 'awaiting_prompt', 'ag:w': 'awaiting_welcome', 'ag:k': 'awaiting_knowledge' };\n    const texts = {\n      'ag:p': 'Пришлите новый prompt текстом.',\n      'ag:w': 'Пришлите новое приветствие текстом.',\n      'ag:k': 'Пришлите новый knowledge content текстом.',\n    };\n    return reply('set_state', texts[$json.callbackData], { nextState: states[$json.callbackData], answerCallback: true });\n  }\n  return reply('reply', 'Неизвестное действие. Откройте /agents.', { answerCallback: true });\n}\n\nif ($json.command === '/start') return reply('reset_to_menu', menuText(), { nextState: 'idle' });\nif ($json.command === '/agents') return reply('reply', agents.length ? 'Ваши агенты:' : 'У вас пока нет агентов.', { replyMarkup: agentsKeyboard() });\n\nif (user.dialog_state === 'awaiting_agent_name') {\n  if (!$json.isTextMessage || !$json.trimmedText) return reply('reply', 'Имя агента нужно отправить текстом.');\n  if (agents.length >= maxAgents) return reply('reset_to_menu', `Лимит агентов исчерпан: ${maxAgents}.`, { nextState: 'idle' });\n  return reply('create_agent', 'Создаю агента...', { agentName: $json.trimmedText });\n}\n\nif (['awaiting_prompt', 'awaiting_welcome', 'awaiting_knowledge'].includes(user.dialog_state)) {\n  if (!activeAgent?.id) return reply('reset_to_menu', 'Сначала выберите агента через /agents.');\n  if (!$json.isTextMessage || !$json.trimmedText) return reply('reply', 'Пришлите текст. Файлы, голосовые и прочая роскошь в этой версии не принимаются.');\n  const routeByState = {\n    awaiting_prompt: 'update_prompt',\n    awaiting_welcome: 'update_welcome',\n    awaiting_knowledge: 'update_knowledge',\n  };\n  return reply(routeByState[user.dialog_state], 'Обновляю агента...', { newText: $json.trimmedText });\n}\n\nreturn reply('reply', 'Откройте /agents, чтобы выбрать или создать агента.');\n"
+        "jsCode": "const user = typeof $json.user_record === 'string' ? JSON.parse($json.user_record) : $json.user_record;\nconst agents = typeof $json.agents === 'string' ? JSON.parse($json.agents) : ($json.agents ?? []);\nconst activeAgent = typeof $json.active_agent === 'string' ? JSON.parse($json.active_agent) : $json.active_agent;\nconst settings = $json.settings ?? {};\nconst maxAgents = Number.isFinite(settings.maxAgentsPerUser) ? settings.maxAgentsPerUser : 3;\n\nconst button = (text, data) => ({ text, callback_data: data });\nconst agentsKeyboard = () => {\n  const rows = agents.map((agent) => [button(agent.is_active ? `✓ ${agent.display_name}` : agent.display_name, `ag:sel:${agent.id}`)]);\n  if (agents.length < maxAgents) rows.push([button('Создать агента', 'ag:new')]);\n  return { inline_keyboard: rows };\n};\nconst actionsKeyboard = () => ({\n  inline_keyboard: [\n    [button('Изменить prompt', 'ag:p')],\n    [button('Изменить приветствие', 'ag:w')],\n    [button('Обновить knowledge', 'ag:k')],\n    [button('Список агентов', 'ag:list')],\n  ],\n});\nconst menuText = () => [\n  'Доступ открыт.',\n  `Лимит агентов: ${maxAgents}.`,\n  'Команда /agents покажет список агентов и действия.',\n].join('\\n');\nconst reply = (route, text, extra = {}) => [{ json: { ...$json, route, replyText: text, replyMarkup: extra.replyMarkup ?? null, ...extra } }];\nconst callbackExtra = (extra = {}) => ($json.isCallback ? { ...extra, answerCallback: true } : extra);\n\nif (!$json.telegramUserId || !$json.chatId) {\n  return reply('reply', 'Не вижу Telegram user id или chat id. Попробуйте отправить сообщение еще раз.', callbackExtra());\n}\n\nif (!user) {\n  if (!$json.accessPasswordConfigured) {\n    return reply('reply', 'Доступ временно не настроен. Попробуйте позже.', callbackExtra());\n  }\n  if ($json.isTextMessage && $json.accessPasswordMatched) {\n    return reply('register_user', menuText());\n  }\n  return reply('reply', 'Пришлите пароль доступа текстовым сообщением.', callbackExtra());\n}\n\nif ($json.isCallback && $json.callbackData) {\n  if ($json.callbackData === 'ag:list') {\n    return reply('reply', agents.length ? 'Ваши агенты:' : 'У вас пока нет агентов.', { replyMarkup: agentsKeyboard(), answerCallback: true });\n  }\n  if ($json.callbackData === 'ag:new') {\n    if (agents.length >= maxAgents) {\n      return reply('reply', `Лимит агентов исчерпан: ${maxAgents}.`, { answerCallback: true });\n    }\n    return reply('set_state', 'Как назвать нового агента? Пришлите имя текстом.', { nextState: 'awaiting_agent_name', answerCallback: true });\n  }\n  if ($json.callbackData.startsWith('ag:sel:')) {\n    const localAgentId = Number.parseInt($json.callbackData.slice('ag:sel:'.length), 10);\n    const selected = agents.find((agent) => agent.id === localAgentId);\n    if (!selected) return reply('reply', 'Этот агент вам не принадлежит. Выберите агента через /agents.', { answerCallback: true });\n    return reply('set_active_agent', `Выбран агент: ${selected.display_name}`, { activeAgentId: localAgentId, nextState: 'idle', replyMarkup: actionsKeyboard(), answerCallback: true });\n  }\n  if (['ag:p', 'ag:w', 'ag:k'].includes($json.callbackData)) {\n    if (!activeAgent?.id) return reply('reply', 'Сначала выберите агента через /agents.', { answerCallback: true });\n    const states = { 'ag:p': 'awaiting_prompt', 'ag:w': 'awaiting_welcome', 'ag:k': 'awaiting_knowledge' };\n    const texts = {\n      'ag:p': 'Пришлите новый prompt текстом.',\n      'ag:w': 'Пришлите новое приветствие текстом.',\n      'ag:k': 'Пришлите новый knowledge content текстом.',\n    };\n    return reply('set_state', texts[$json.callbackData], { nextState: states[$json.callbackData], answerCallback: true });\n  }\n  return reply('reply', 'Неизвестное действие. Откройте /agents.', { answerCallback: true });\n}\n\nif ($json.command === '/start') return reply('reset_to_menu', menuText(), { nextState: 'idle' });\nif ($json.command === '/agents') return reply('reply', agents.length ? 'Ваши агенты:' : 'У вас пока нет агентов.', { replyMarkup: agentsKeyboard() });\n\nif (user.dialog_state === 'awaiting_agent_name') {\n  if (!$json.isTextMessage || !$json.trimmedText) return reply('reply', 'Имя агента нужно отправить текстом.');\n  if (agents.length >= maxAgents) return reply('reset_to_menu', `Лимит агентов исчерпан: ${maxAgents}.`, { nextState: 'idle' });\n  return reply('create_agent', 'Создаю агента...', { agentName: $json.trimmedText });\n}\n\nif (['awaiting_prompt', 'awaiting_welcome', 'awaiting_knowledge'].includes(user.dialog_state)) {\n  if (!activeAgent?.id) return reply('reset_to_menu', 'Сначала выберите агента через /agents.', { nextState: 'idle' });\n  if (!$json.isTextMessage || !$json.trimmedText) return reply('reply', 'Пришлите текст. Файлы, голосовые и прочая роскошь в этой версии не принимаются.');\n  const routeByState = {\n    awaiting_prompt: 'update_prompt',\n    awaiting_welcome: 'update_welcome',\n    awaiting_knowledge: 'update_knowledge',\n  };\n  return reply(routeByState[user.dialog_state], 'Обновляю агента...', { newText: $json.trimmedText });\n}\n\nreturn reply('reply', 'Откройте /agents, чтобы выбрать или создать агента.');\n"
       },
       "id": "55f10ad2-1c50-4c9a-a6b2-61610dfab3a1",
       "name": "Route Telegram Event",
@@ -375,6 +375,153 @@
         2080,
         120
       ]
+    },
+    {
+      "parameters": {
+        "jsCode": "if ($json.answerCallback && $json.callbackQueryId) {\n  return [{ json: $json }];\n}\nreturn [];"
+      },
+      "id": "5ce6f3be-95ad-4578-8cc8-51cf59e4a857",
+      "name": "Filter Callback Answer",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO telegram_users (\n  telegram_user_id,\n  chat_id,\n  username,\n  first_name,\n  last_name,\n  dialog_state\n)\nVALUES (\n  $1,\n  $2,\n  NULLIF($3, ''),\n  NULLIF($4, ''),\n  NULLIF($5, ''),\n  'idle'\n)\nON CONFLICT (telegram_user_id) DO UPDATE SET\n  chat_id = EXCLUDED.chat_id,\n  username = EXCLUDED.username,\n  first_name = EXCLUDED.first_name,\n  last_name = EXCLUDED.last_name,\n  dialog_state = 'idle',\n  updated_at = now()\nRETURNING\n  id,\n  telegram_user_id,\n  chat_id,\n  username,\n  first_name,\n  last_name,\n  active_agent_id,\n  dialog_state,\n  created_at,\n  updated_at,\n  telegram_user_id AS \"telegramUserId\";",
+        "options": {
+          "queryReplacement": "={{ [$json.telegramUserId, $json.chatId, $json.username, $json.firstName, $json.lastName] }}"
+        }
+      },
+      "id": "a0dd21cf-f16c-44ff-96f0-21b757cd2062",
+      "name": "Register User",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2080,
+        -700
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH bot_user AS (\n  SELECT *\n  FROM telegram_users\n  WHERE telegram_user_id = $1\n),\nagent_rows AS (\n  SELECT\n    a.id,\n    a.elevenlabs_agent_id,\n    a.display_name,\n    a.knowledge_document_id,\n    a.prompt_text,\n    a.welcome_text,\n    a.status,\n    a.created_at,\n    (a.id = (SELECT active_agent_id FROM bot_user)) AS is_active\n  FROM elevenlabs_agents a\n  WHERE a.user_id = (SELECT id FROM bot_user)\n    AND a.status = 'active'\n  ORDER BY a.created_at ASC\n),\nactive_agent AS (\n  SELECT *\n  FROM agent_rows\n  WHERE is_active\n  LIMIT 1\n)\nSELECT\n  COALESCE(to_jsonb((SELECT row_to_json(bot_user) FROM bot_user)), 'null'::jsonb) AS user_record,\n  COALESCE((SELECT jsonb_agg(to_jsonb(agent_rows)) FROM agent_rows), '[]'::jsonb) AS agents,\n  COALESCE(to_jsonb((SELECT row_to_json(active_agent) FROM active_agent)), 'null'::jsonb) AS active_agent;",
+        "options": {
+          "queryReplacement": "={{ $json.telegramUserId || $json.telegram_user_id }}"
+        }
+      },
+      "id": "6ab8b69e-00f5-45f6-b3cc-acd293a70677",
+      "name": "Refresh User Context",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2340,
+        -700
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const route = $('Route Telegram Event').item.json;\nreturn [{ json: { ...route, ...$json } }];"
+      },
+      "id": "f44cc4a3-1f49-44f8-a635-f54e2588f3f2",
+      "name": "Restore Registered User Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2600,
+        -700
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE telegram_users\nSET\n  dialog_state = COALESCE(NULLIF($2, ''), dialog_state),\n  active_agent_id = COALESCE(NULLIF($3, '')::bigint, active_agent_id),\n  updated_at = now()\nWHERE telegram_user_id = $1\nRETURNING *;",
+        "options": {
+          "queryReplacement": "={{ [$json.telegramUserId, $json.nextState || \"\", $json.activeAgentId || \"\"] }}"
+        }
+      },
+      "id": "c4589d0c-4982-42a7-90f6-df7814c2ff8c",
+      "name": "Set Dialog State",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2080,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const route = $('Route Telegram Event').item.json;\nreturn [{ json: { ...route, stateResult: $json } }];"
+      },
+      "id": "5447d976-d342-479e-a937-f4fff2c53cd7",
+      "name": "Restore Dialog State Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2340,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "if ($json.replyMarkup) {\n  return [];\n}\nreturn [{ json: $json }];"
+      },
+      "id": "26f6048e-7c22-499f-b118-d4af65e1709b",
+      "name": "Build Telegram Plain Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2860,
+        -20
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "if (!$json.replyMarkup) {\n  return [];\n}\n\nconst telegramRequestBody = {\n  chat_id: $json.chatId,\n  text: $json.replyText,\n  reply_markup: $json.replyMarkup,\n};\n\nif ($json.messageId) {\n  telegramRequestBody.reply_to_message_id = $json.messageId;\n}\n\nreturn [{ json: { ...$json, telegramRequestBody } }];"
+      },
+      "id": "4d96c77c-a4fb-4301-bc96-f2cf5125242c",
+      "name": "Build Telegram Keyboard Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2860,
+        -260
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.TELEGRAM_BOT_API_BASE_URL + '/sendMessage' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.telegramRequestBody) }}",
+        "options": {}
+      },
+      "id": "c8d2ab4c-080f-427b-a4a1-80d7e2a22408",
+      "name": "Send Telegram Keyboard Message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3120,
+        -260
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const pendingText = [\n  'Действие принято, но узлы ElevenLabs еще не подключены в этом экспортированном workflow.',\n  'Продолжу настройку следующим шагом.',\n].join('\\n');\n\nreturn [{ json: { ...$json, replyText: pendingText, replyMarkup: null } }];"
+      },
+      "id": "34ce54d7-8e7c-4623-b479-7407ef141dd2",
+      "name": "Pending ElevenLabs Action Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        520
+      ]
     }
   ],
   "connections": {
@@ -449,6 +596,202 @@
         [
           {
             "node": "Route Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Switch": {
+      "main": [
+        [
+          {
+            "node": "Register User",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Filter Callback Answer",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Set Dialog State",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Filter Callback Answer",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Set Dialog State",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set Dialog State",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Filter Callback Answer",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build Telegram Plain Reply",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build Telegram Keyboard Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Pending ElevenLabs Action Reply",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Pending ElevenLabs Action Reply",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Pending ElevenLabs Action Reply",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Pending ElevenLabs Action Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Callback Answer": {
+      "main": [
+        [
+          {
+            "node": "Answer Callback Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Register User": {
+      "main": [
+        [
+          {
+            "node": "Refresh User Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Refresh User Context": {
+      "main": [
+        [
+          {
+            "node": "Restore Registered User Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restore Registered User Context": {
+      "main": [
+        [
+          {
+            "node": "Build Telegram Plain Reply",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build Telegram Keyboard Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Dialog State": {
+      "main": [
+        [
+          {
+            "node": "Restore Dialog State Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restore Dialog State Context": {
+      "main": [
+        [
+          {
+            "node": "Build Telegram Plain Reply",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build Telegram Keyboard Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Telegram Plain Reply": {
+      "main": [
+        [
+          {
+            "node": "Reply in Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Telegram Keyboard Request": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram Keyboard Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pending ElevenLabs Action Reply": {
+      "main": [
+        [
+          {
+            "node": "Build Telegram Plain Reply",
             "type": "main",
             "index": 0
           }
