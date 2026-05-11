@@ -49,7 +49,16 @@
    ```
 
 6. Заполните реальные env-файлы приложений в `env/prod` и `env/stage`.
-7. Поднимите gateway и наблюдаемость:
+7. Если нужен n8n, перед запуском `make up-n8n` создайте отдельную PostgreSQL базу и пользователя:
+
+   ```bash
+   make up-postgres
+   ./scripts/create-postgres-app-db.sh n8n prod
+   ```
+
+   Затем перенесите выведенные значения БД в `n8n/.env`: `DB_POSTGRESDB_DATABASE`, `DB_POSTGRESDB_USER` и `DB_POSTGRESDB_PASSWORD`.
+
+8. Поднимите gateway и наблюдаемость:
 
    ```bash
    make up-gateway
@@ -71,14 +80,14 @@
    После `make up-postgres` UI PostgreSQL будет доступен по `https://<ADMINER_HOST>/`.
    После `make up-n8n` n8n будет доступен по `https://<N8N_HOST>/`.
 
-8. Скопируйте шаблон приложения:
+9. Скопируйте шаблон приложения:
 
    ```bash
    cp -R deployments/app-template deployments/app1-prod
    cp deployments/app-template/.env.example deployments/app1-prod/.env
    ```
 
-8. Отредактируйте `deployments/app1-prod/.env`, создайте `env/prod/app1.env` и выполните деплой:
+10. Отредактируйте `deployments/app1-prod/.env`, создайте `env/prod/app1.env` и выполните деплой:
 
    ```bash
    make deploy APP=app1 ENV=prod

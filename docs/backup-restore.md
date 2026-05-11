@@ -36,10 +36,23 @@
 ./scripts/backup-volumes.sh --stack app1 prod
 ```
 
+Резервная копия базы n8n в shared PostgreSQL:
+
+```bash
+mkdir -p backups/postgres
+docker compose --env-file postgres/.env -f postgres/docker-compose.yml exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d n8n_prod -Fc' > backups/postgres/n8n_prod.dump
+```
+
 Восстановление env:
 
 ```bash
 ./scripts/restore-env.sh backups/env/env-YYYYMMDD-HHMMSS.tar.gz
+```
+
+Восстановление базы n8n из dump:
+
+```bash
+docker compose --env-file postgres/.env -f postgres/docker-compose.yml exec -T postgres sh -c 'pg_restore -U "$POSTGRES_USER" -d n8n_prod --clean --if-exists' < backups/postgres/n8n_prod.dump
 ```
 
 ## Проверка, что backup не мусор
@@ -49,7 +62,7 @@
 - после тестового восстановления проверяйте права доступа;
 - после restore запускайте `./scripts/healthcheck.sh`.
 
-Для n8n backup volume не заменяет backup PostgreSQL: workflows, credentials и executions хранятся в выделенной базе shared PostgreSQL. Перед обновлениями n8n сохраняйте `n8n-data`, env и дамп базы.
+Для n8n backup volume не заменяет backup PostgreSQL: workflows, credentials и executions хранятся в выделенной базе shared PostgreSQL. Перед обновлениями n8n сохраняйте `n8n-data`, env и dump базы через `pg_dump`; один volume backup недостаточен для восстановления n8n.
 
 ## Практика восстановления
 
