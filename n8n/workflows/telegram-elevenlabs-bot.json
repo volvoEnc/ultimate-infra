@@ -522,6 +522,135 @@
         2080,
         520
       ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const settings = $json.settings ?? {};\nconst agents = typeof $json.agents === 'string' ? JSON.parse($json.agents) : ($json.agents ?? []);\nconst maxAgents = Number.isFinite(settings.maxAgentsPerUser) ? settings.maxAgentsPerUser : 3;\nconst agentName = String($json.agentName ?? '').trim().slice(0, 80);\n\nif (!$json.user_record || !agentName) {\n  throw new Error('Cannot create ElevenLabs agent without a registered user and agent name.');\n}\n\nif (agents.length >= maxAgents) {\n  throw new Error(`Agent limit exceeded before create request: ${maxAgents}.`);\n}\n\nconst defaultPrompt = settings.defaultPrompt ?? 'You are a helpful voice assistant.';\nconst defaultWelcome = settings.defaultWelcome ?? 'Hello, how can I help you today?';\nconst defaultLanguage = settings.defaultLanguage ?? 'en';\nconst defaultVoiceId = settings.defaultVoiceId ?? 'cjVigY5qzO86Huf0OWal';\nconst defaultTtsModelId = settings.defaultTtsModelId ?? 'eleven_turbo_v2';\nconst defaultLlm = settings.defaultLlm ?? 'gemini-2.5-flash';\nconst reservationKey = `pending:${$json.telegramUserId}:${Date.now()}:${Math.random().toString(36).slice(2)}`;\n\nconst elevenLabsCreateAgentBody = {\n  name: agentName,\n  tags: ['telegram-bot', 'n8n-managed'],\n  conversation_config: {\n    agent: {\n      first_message: defaultWelcome,\n      language: defaultLanguage,\n      prompt: {\n        prompt: defaultPrompt,\n        llm: defaultLlm,\n      },\n    },\n    tts: {\n      voice_id: defaultVoiceId,\n      model_id: defaultTtsModelId,\n    },\n  },\n};\n\nreturn [{ json: { ...$json, agentName, defaultPrompt, defaultWelcome, reservationKey, elevenLabsCreateAgentBody } }];"
+      },
+      "id": "f2f317a4-5126-46c0-bef5-08e541e73efe",
+      "name": "Build ElevenLabs Agent Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.elevenlabs.io/v1/convai/agents/create",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.elevenLabsCreateAgentBody) }}",
+        "options": {}
+      },
+      "id": "5f9a77ac-0c3c-4603-ac72-12264241e5f1",
+      "name": "Create ElevenLabs Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2860,
+        560
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__ELEVENLABS_HTTP_HEADER_AUTH_CREDENTIAL_ID__",
+          "name": "ElevenLabs API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH updated_agent AS (\n  UPDATE elevenlabs_agents\n  SET\n    elevenlabs_agent_id = $2,\n    status = 'active',\n    updated_at = now()\n  WHERE id = $1::bigint\n    AND user_id = (\n      SELECT id\n      FROM telegram_users\n      WHERE telegram_user_id = $3\n    )\n    AND status = 'creating'\n  RETURNING *\n),\nupdated_user AS (\n  UPDATE telegram_users\n  SET\n    active_agent_id = (SELECT id FROM updated_agent),\n    dialog_state = 'idle',\n    updated_at = now()\n  WHERE telegram_user_id = $3\n    AND EXISTS (SELECT 1 FROM updated_agent)\n  RETURNING telegram_user_id\n)\nSELECT\n  updated_agent.*,\n  (SELECT telegram_user_id FROM updated_user) AS \"telegramUserId\"\nFROM updated_agent;",
+        "options": {
+          "queryReplacement": "={{ [$('Prepare Reserved Agent Create').item.json.reservationLocalAgentId, $json.agent_id, $('Prepare Reserved Agent Create').item.json.telegramUserId] }}"
+        }
+      },
+      "id": "5634b515-f978-4cc6-944d-296f01148cec",
+      "name": "Save Created Agent",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3120,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH bot_user AS (\n  SELECT *\n  FROM telegram_users\n  WHERE telegram_user_id = $1\n),\nagent_rows AS (\n  SELECT\n    a.id,\n    a.elevenlabs_agent_id,\n    a.display_name,\n    a.knowledge_document_id,\n    a.prompt_text,\n    a.welcome_text,\n    a.status,\n    a.created_at,\n    (a.id = (SELECT active_agent_id FROM bot_user)) AS is_active\n  FROM elevenlabs_agents a\n  WHERE a.user_id = (SELECT id FROM bot_user)\n    AND a.status = 'active'\n  ORDER BY a.created_at ASC\n),\nactive_agent AS (\n  SELECT *\n  FROM agent_rows\n  WHERE is_active\n  LIMIT 1\n)\nSELECT\n  COALESCE(to_jsonb((SELECT row_to_json(bot_user) FROM bot_user)), 'null'::jsonb) AS user_record,\n  COALESCE((SELECT jsonb_agg(to_jsonb(agent_rows)) FROM agent_rows), '[]'::jsonb) AS agents,\n  COALESCE(to_jsonb((SELECT row_to_json(active_agent) FROM active_agent)), 'null'::jsonb) AS active_agent;",
+        "options": {
+          "queryReplacement": "={{ $json.telegramUserId || $json.telegram_user_id }}"
+        }
+      },
+      "id": "56e375f1-11ce-4c88-90da-e7bbacff113f",
+      "name": "Refresh User Context After Agent Create",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3380,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const route = $('Prepare Reserved Agent Create').item.json;\nconst saved = $('Save Created Agent').item.json;\nconst agents = typeof $json.agents === 'string' ? JSON.parse($json.agents) : ($json.agents ?? []);\nif (!saved?.id) {\n  throw new Error('Created ElevenLabs agent was not saved locally, most likely because the user agent limit was reached concurrently.');\n}\n\nconst createdAgentName = saved.display_name ?? route.agentName;\nconst activeLocalId = Number(saved.id);\n\nconst button = (text, data) => ({ text, callback_data: data });\nconst actionsKeyboard = () => ({\n  inline_keyboard: [\n    [button('Изменить prompt', 'ag:p')],\n    [button('Изменить приветствие', 'ag:w')],\n    [button('Обновить knowledge', 'ag:k')],\n    [button('Список агентов', 'ag:list')],\n  ],\n});\n\nreturn [{\n  json: {\n    ...route,\n    ...$json,\n    agents,\n    activeAgentId: activeLocalId,\n    replyText: `Агент создан: ${createdAgentName}.`,\n    replyMarkup: actionsKeyboard(),\n  },\n}];"
+      },
+      "id": "0ab143e0-202a-41fa-ac19-07ea6687980b",
+      "name": "Build Created Agent Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3640,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH bot_user AS (\n  SELECT id, telegram_user_id\n  FROM telegram_users\n  WHERE telegram_user_id = $1\n  FOR UPDATE\n),\nagent_count AS (\n  SELECT count(*)::int AS reserved_count\n  FROM elevenlabs_agents\n  WHERE user_id = (SELECT id FROM bot_user)\n    AND (\n      status = 'active'\n      OR (status = 'creating' AND updated_at > now() - interval '15 minutes')\n    )\n),\nreserved_agent AS (\n  INSERT INTO elevenlabs_agents (\n    user_id,\n    elevenlabs_agent_id,\n    display_name,\n    prompt_text,\n    welcome_text,\n    status\n  )\n  SELECT\n    bot_user.id,\n    $2,\n    $3,\n    $4,\n    $5,\n    'creating'\n  FROM bot_user, agent_count\n  WHERE agent_count.reserved_count < $6::int\n  RETURNING *\n)\nSELECT\n  COALESCE((SELECT to_jsonb(reserved_agent) FROM reserved_agent), 'null'::jsonb) AS reserved_agent,\n  (SELECT telegram_user_id FROM bot_user) AS \"telegramUserId\",\n  (SELECT reserved_count FROM agent_count) AS reserved_count,\n  $6::int AS max_agents;",
+        "options": {
+          "queryReplacement": "={{ [$json.telegramUserId, $json.reservationKey, $json.agentName, $json.defaultPrompt, $json.defaultWelcome, $json.settings.maxAgentsPerUser || 3] }}"
+        }
+      },
+      "id": "ec2a7a36-0b69-4b55-9daa-729da33e191e",
+      "name": "Reserve Agent Slot",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2340,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $('Build ElevenLabs Agent Payload').item.json;\nconst reserved = typeof $json.reserved_agent === 'string' ? JSON.parse($json.reserved_agent) : $json.reserved_agent;\n\nif (reserved?.id) {\n  return [];\n}\n\nreturn [{\n  json: {\n    ...payload,\n    ...$json,\n    replyText: `Лимит агентов исчерпан: ${$json.max_agents ?? payload.settings?.maxAgentsPerUser ?? 3}.`,\n    replyMarkup: null,\n    nextState: 'idle',\n  },\n}];"
+      },
+      "id": "a52d7998-d37f-410c-98ea-4f10872f292f",
+      "name": "Build Agent Limit Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2600,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $('Build ElevenLabs Agent Payload').item.json;\nconst reserved = typeof $json.reserved_agent === 'string' ? JSON.parse($json.reserved_agent) : $json.reserved_agent;\n\nif (!reserved?.id) {\n  return [];\n}\n\nreturn [{\n  json: {\n    ...payload,\n    reservationLocalAgentId: reserved.id,\n    reservationKey: reserved.elevenlabs_agent_id,\n  },\n}];"
+      },
+      "id": "51b4d8cb-1122-46db-bd74-2ecf795ce942",
+      "name": "Prepare Reserved Agent Create",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2600,
+        560
+      ]
     }
   ],
   "connections": {
@@ -661,7 +790,7 @@
         ],
         [
           {
-            "node": "Pending ElevenLabs Action Reply",
+            "node": "Build ElevenLabs Agent Payload",
             "type": "main",
             "index": 0
           }
@@ -792,6 +921,104 @@
         [
           {
             "node": "Build Telegram Plain Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build ElevenLabs Agent Payload": {
+      "main": [
+        [
+          {
+            "node": "Reserve Agent Slot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create ElevenLabs Agent": {
+      "main": [
+        [
+          {
+            "node": "Save Created Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Created Agent": {
+      "main": [
+        [
+          {
+            "node": "Refresh User Context After Agent Create",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Refresh User Context After Agent Create": {
+      "main": [
+        [
+          {
+            "node": "Build Created Agent Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Created Agent Reply": {
+      "main": [
+        [
+          {
+            "node": "Build Telegram Plain Reply",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build Telegram Keyboard Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reserve Agent Slot": {
+      "main": [
+        [
+          {
+            "node": "Build Agent Limit Reply",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare Reserved Agent Create",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Agent Limit Reply": {
+      "main": [
+        [
+          {
+            "node": "Set Dialog State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Reserved Agent Create": {
+      "main": [
+        [
+          {
+            "node": "Create ElevenLabs Agent",
             "type": "main",
             "index": 0
           }

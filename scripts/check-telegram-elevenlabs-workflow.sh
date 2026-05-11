@@ -53,8 +53,14 @@ required_nodes=(
   "Build Telegram Keyboard Request"
   "Send Telegram Keyboard Message"
   "Pending ElevenLabs Action Reply"
+  "Build ElevenLabs Agent Payload"
+  "Reserve Agent Slot"
+  "Build Agent Limit Reply"
+  "Prepare Reserved Agent Create"
   "Create ElevenLabs Agent"
   "Save Created Agent"
+  "Refresh User Context After Agent Create"
+  "Build Created Agent Reply"
   "Get ElevenLabs Agent"
   "Create Knowledge Document"
   "Build ElevenLabs Patch"
@@ -76,5 +82,11 @@ done
 jq -e '[.nodes[] | select(.type == "n8n-nodes-base.postgres")] | length >= 6' "$WORKFLOW_PATH" >/dev/null
 jq -e '[.nodes[] | select(.type == "n8n-nodes-base.httpRequest")] | length >= 5' "$WORKFLOW_PATH" >/dev/null
 jq -e '[.nodes[] | select(.type == "n8n-nodes-base.code")] | length >= 3' "$WORKFLOW_PATH" >/dev/null
+jq -e '.nodes[] | select(.name == "Create ElevenLabs Agent") | .parameters.method == "POST"' "$WORKFLOW_PATH" >/dev/null
+jq -e '.nodes[] | select(.name == "Create ElevenLabs Agent") | .parameters.url == "https://api.elevenlabs.io/v1/convai/agents/create"' "$WORKFLOW_PATH" >/dev/null
+jq -e '.nodes[] | select(.name == "Create ElevenLabs Agent") | .parameters.authentication == "genericCredentialType" and .parameters.genericAuthType == "httpHeaderAuth"' "$WORKFLOW_PATH" >/dev/null
+jq -e '.nodes[] | select(.name == "Create ElevenLabs Agent") | .credentials.httpHeaderAuth.name == "ElevenLabs API Key"' "$WORKFLOW_PATH" >/dev/null
+jq -e '.nodes[] | select(.name == "Reserve Agent Slot") | .parameters.query | contains("FOR UPDATE")' "$WORKFLOW_PATH" >/dev/null
+jq -e '.nodes[] | select(.name == "Reserve Agent Slot") | .parameters.query | contains("interval '"'"'15 minutes'"'"'")' "$WORKFLOW_PATH" >/dev/null
 
 echo "Telegram ElevenLabs workflow validation passed."
