@@ -97,14 +97,14 @@ N8N_IMPORT_USER_ID=<user-id>
 
 Open n8n and check that `Telegram ElevenLabs Bot` exists.
 
-The expanded `Telegram ElevenLabs Bot` workflow uses the settings and credentials below. Until that expanded workflow JSON is imported, the committed workflow may only provide the rollout scaffold rather than the full bot behavior; documentation should not perform prophecy where version control has not yet provided evidence.
-
-After the expanded workflow is imported, it is expected to handle:
+The committed `Telegram ElevenLabs Bot` workflow uses the settings and credentials below. After import, it handles:
 
 - password-gated first access for unknown Telegram users;
 - `/start` menu;
 - `/agents` inline agent list and agent creation;
 - prompt, welcome message, and text-only knowledge updates for the selected ElevenLabs agent.
+- local ownership checks so Telegram users only operate on agents stored under their own user record;
+- bot event logging for successful key operations and selected failure paths.
 
 Create a dedicated PostgreSQL database for bot business data:
 
@@ -118,7 +118,7 @@ Create these n8n credentials manually after import:
 - PostgreSQL credential pointing at the bot business database, not the n8n internal database;
 - HTTP Header Auth credential for ElevenLabs with header name `xi-api-key` and the ElevenLabs API key as the value.
 
-Attach credentials to the matching Telegram, PostgreSQL, and HTTP Request nodes in the workflow.
+Attach credentials to the matching Telegram, PostgreSQL, and HTTP Request nodes in the workflow. Name the ElevenLabs HTTP Header Auth credential `ElevenLabs API Key`, or update the imported workflow nodes to match your credential name.
 
 Dynamic inline keyboards, including `/agents`, are sent through Telegram Bot API HTTP calls. n8n's native Telegram node stores inline keyboard rows as a fixedCollection shape, and that shape does not handle dynamic rows cleanly without the sort of ceremony usually reserved for minor court intrigues. Keep using the Telegram API credential for trigger and plain Telegram nodes, but set `TELEGRAM_BOT_API_BASE_URL=https://api.telegram.org/bot<token>` in untracked `n8n/.env` for HTTP Request nodes, where `<token>` is the BotFather token.
 
@@ -137,6 +137,8 @@ DEFAULT_AGENT_LLM=gpt-4o-mini
 ```
 
 Do not commit the real `BOT_ACCESS_PASSWORD`, Telegram bot token, or ElevenLabs API key. The workflow reads them from runtime configuration and credentials; the export must stay secret-free.
+
+The bot intentionally accepts only text messages for agent names, prompt updates, welcome message updates, and knowledge content. Files, voice messages, and other Telegram payloads receive a text-only error reply rather than being sent to ElevenLabs.
 
 Export current workflows for inspection:
 
