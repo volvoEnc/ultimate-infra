@@ -1,0 +1,86 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:${CLICKHOUSE_VERSION}
+    container_name: infra-clickhouse
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ}
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+    security_opt:
+      - no-new-privileges:true
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      - clickhouse-logs:/var/log/clickhouse-server
+    networks:
+      data:
+        aliases:
+          - infra-clickhouse
+          - clickhouse
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8123/ping || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging: *default-logging
+
+  clickhouse-ui:
+    image: ghcr.io/caioricciuti/ch-ui:${CLICKHOUSE_UI_VERSION}
+    container_name: infra-clickhouse-ui
+    restart: unless-stopped
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    environment:
+      TZ: ${TZ}
+      CLICKHOUSE_URL: http://infra-clickhouse:8123
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      CONNECTION_NAME: ${CLICKHOUSE_UI_CONNECTION_NAME}
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - clickhouse-ui-data:/app/data
+    networks:
+      - data
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${PROXY_NETWORK}
+      - traefik.http.routers.clickhouse-ui.rule=Host(`${CLICKHOUSE_UI_HOST}`)
+      - traefik.http.routers.clickhouse-ui.entrypoints=websecure
+      - traefik.http.routers.clickhouse-ui.tls=true
+      - traefik.http.routers.clickhouse-ui.tls.certresolver=letsencrypt
+      - traefik.http.routers.clickhouse-ui.middlewares=default-chain@file,clickhouse-ui-auth@docker
+      - traefik.http.services.clickhouse-ui.loadbalancer.server.port=3488
+      - traefik.http.middlewares.clickhouse-ui-auth.basicauth.users=${CLICKHOUSE_UI_BASIC_AUTH_USERS}
+    logging: *default-logging
+
+volumes:
+  clickhouse-data:
+    name: clickhouse-data
+  clickhouse-logs:
+    name: clickhouse-logs
+  clickhouse-ui-data:
+    name: clickhouse-ui-data
+
+networks:
+  data:
+    external: true
+    name: ${DATA_NETWORK}
+  proxy:
+    external: true
+    name: ${PROXY_NETWORK}

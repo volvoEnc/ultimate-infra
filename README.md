@@ -12,6 +12,8 @@
 - `uptime/` — Uptime Kuma для внешних healthchecks и мониторинга доступности.
 - `centrifugo/` — Centrifugo для realtime/WebSocket, с публичным endpoint через Traefik и внутренними `/api`, `/health`, `/metrics`.
 - `n8n/` — self-hosted workflow automation через Traefik и shared PostgreSQL.
+- `clickhouse/` — ClickHouse server с публичным CH-UI через Traefik и Basic Auth.
+- `kafka/` — single-node Kafka в KRaft mode с публичным Kafbat UI через Traefik и Basic Auth.
 - `deployments/app-template/` — шаблон приложения с `app`, `worker`, `cron`, `env_file`, healthcheck и Traefik labels.
 - `env/` — каталог для реальных env-файлов по окружениям, без коммита в git.
 - `scripts/` — bash-скрипты для инициализации сервера, деплоя, логов и резервных копий.
@@ -38,6 +40,8 @@
    cp uptime/.env.example uptime/.env
    cp centrifugo/.env.example centrifugo/.env
    cp n8n/.env.example n8n/.env
+   cp clickhouse/.env.example clickhouse/.env
+   cp kafka/.env.example kafka/.env
    ```
 
 5. Если нужен приватный Registry, создайте `htpasswd` файл, например:
@@ -69,6 +73,8 @@
    make up-uptime
    make up-centrifugo
    make up-n8n
+   make up-clickhouse
+   make up-kafka
    ```
 
    Если запускаете stack вручную не из его каталога, передавайте `--env-file`, например:
@@ -79,6 +85,8 @@
 
    После `make up-postgres` UI PostgreSQL будет доступен по `https://<ADMINER_HOST>/`.
    После `make up-n8n` n8n будет доступен по `https://<N8N_HOST>/`.
+   После `make up-clickhouse` CH-UI будет доступен по `https://<CLICKHOUSE_UI_HOST>/`.
+   После `make up-kafka` Kafbat UI будет доступен по `https://<KAFKA_UI_HOST>/`.
    Коммитнутые n8n workflows импортируются одной командой: `make import-n8n-workflows`.
 
 9. Скопируйте шаблон приложения:
@@ -161,6 +169,8 @@
 - Gateway и приложения подключаются к общей external network `proxy`.
 - Приложения и PostgreSQL подключаются к общей external network `data`.
 - n8n использует отдельную PostgreSQL базу в shared `infra-postgres` и named volume `n8n-data`.
+- ClickHouse и Kafka broker ports не публикуются на host; публичны только их UI через Traefik с Basic Auth.
+- Внутренние клиенты подключаются к ClickHouse как `infra-clickhouse` и к Kafka как `infra-kafka:9092` в сети `data`.
 - Приватные сервисы общаются по внутренним сетям stack'ов.
 - Секреты не захардкожены и не хранятся в git.
 
@@ -181,6 +191,8 @@ make up-admin
 make up-uptime
 make up-centrifugo
 make up-n8n
+make up-clickhouse
+make up-kafka
 make import-n8n-workflows
 make deploy APP=app1 ENV=prod
 make logs APP=app1 ENV=prod
@@ -201,3 +213,5 @@ make status
 - `docs/observability.md`
 - `centrifugo/README.md`
 - `n8n/README.md`
+- `clickhouse/README.md`
+- `kafka/README.md`

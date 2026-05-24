@@ -47,4 +47,6 @@ Next steps:
   5. Start registry if needed: make up-registry
   6. Start observability: make up-observability
   7. Start n8n if needed: make up-n8n
+  8. Start ClickHouse if needed: make up-clickhouse
+  9. Start Kafka if needed: make up-kafka
 EOF

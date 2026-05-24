@@ -5,7 +5,7 @@ SHELL := /usr/bin/env bash
 APP ?=
 ENV ?=
 
-.PHONY: help up-gateway up-postgres up-registry up-observability up-admin up-uptime up-centrifugo up-n8n import-n8n-workflows check-telegram-elevenlabs-workflow deploy logs status init-server
+.PHONY: help up-gateway up-postgres up-registry up-observability up-admin up-uptime up-centrifugo up-n8n up-clickhouse up-kafka import-n8n-workflows check-telegram-elevenlabs-workflow deploy logs status init-server
 
 help:
 	@printf '%s\n' \
@@ -18,6 +18,8 @@ help:
 	  '  make up-uptime' \
 	  '  make up-centrifugo' \
 	  '  make up-n8n' \
+	  '  make up-clickhouse' \
+	  '  make up-kafka' \
 	  '  make import-n8n-workflows' \
 	  '  make check-telegram-elevenlabs-workflow' \
 	  '  make deploy APP=app1 ENV=prod' \
@@ -63,6 +65,16 @@ up-n8n:
 	./scripts/create-network.sh proxy
 	./scripts/create-network.sh data
 	cd n8n && docker compose --env-file .env up -d --remove-orphans
+
+up-clickhouse:
+	./scripts/create-network.sh proxy
+	./scripts/create-network.sh data
+	cd clickhouse && docker compose --env-file .env up -d --remove-orphans
+
+up-kafka:
+	./scripts/create-network.sh proxy
+	./scripts/create-network.sh data
+	cd kafka && docker compose --env-file .env up -d --remove-orphans
 
 import-n8n-workflows:
 	./scripts/import-n8n-workflows.sh
