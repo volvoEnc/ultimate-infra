@@ -10,6 +10,8 @@
 - volume `postgres-data`;
 - volume `registry-data`;
 - volume `n8n-data` plus the dedicated n8n PostgreSQL database;
+- volumes `clickhouse-data`, `clickhouse-logs` и `clickhouse-ui-data`;
+- volume `kafka-data`;
 - volumes Grafana, Prometheus, Loki и Portainer.
 
 ## Как часто
@@ -33,6 +35,8 @@
 ./scripts/backup-volumes.sh --stack postgres
 ./scripts/backup-volumes.sh --stack registry
 ./scripts/backup-volumes.sh --stack n8n
+./scripts/backup-volumes.sh --stack clickhouse
+./scripts/backup-volumes.sh --stack kafka
 ./scripts/backup-volumes.sh --stack app1 prod
 ```
 
