@@ -106,7 +106,7 @@
    cp deployments/app-template/.env.example deployments/app1-prod/.env
    ```
 
-10. Отредактируйте `deployments/app1-prod/.env`, создайте `env/prod/app1.env` и выполните деплой:
+11. Отредактируйте `deployments/app1-prod/.env`, создайте `env/prod/app1.env` и выполните деплой:
 
    ```bash
    make deploy APP=app1 ENV=prod
