@@ -1,0 +1,87 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  redis:
+    image: redis:${REDIS_VERSION}
+    container_name: infra-redis
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_ARGS: --appendonly yes --requirepass ${REDIS_PASSWORD}
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - redis-data:/data
+    networks:
+      data:
+        aliases:
+          - infra-redis
+          - redis
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=\"$${REDIS_PASSWORD}\" redis-cli ping | grep PONG"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging: *default-logging
+
+  redis-ui:
+    image: redis/redisinsight:${REDIS_UI_VERSION}
+    container_name: infra-redis-ui
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      TZ: ${TZ}
+      RI_APP_PORT: 5540
+      RI_ENCRYPTION_KEY: ${REDIS_UI_ENCRYPTION_KEY}
+      RI_REDIS_HOST: infra-redis
+      RI_REDIS_PORT: 6379
+      RI_REDIS_ALIAS: Infra Redis
+      RI_REDIS_USERNAME: default
+      RI_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      RI_REDIS_DB: 0
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - redis-ui-data:/data
+    networks:
+      - data
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${PROXY_NETWORK}
+      - traefik.http.routers.redis-ui.rule=Host(`${REDIS_UI_HOST}`)
+      - traefik.http.routers.redis-ui.entrypoints=websecure
+      - traefik.http.routers.redis-ui.tls=true
+      - traefik.http.routers.redis-ui.tls.certresolver=letsencrypt
+      - traefik.http.routers.redis-ui.middlewares=default-chain@file,redis-ui-auth@docker
+      - traefik.http.services.redis-ui.loadbalancer.server.port=5540
+      - traefik.http.middlewares.redis-ui-auth.basicauth.users=${REDIS_UI_BASIC_AUTH_USERS}
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:5540/api/health/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging: *default-logging
+
+volumes:
+  redis-data:
+    name: redis-data
+  redis-ui-data:
+    name: redis-ui-data
+
+networks:
+  data:
+    external: true
+    name: ${DATA_NETWORK}
+  proxy:
+    external: true
+    name: ${PROXY_NETWORK}
