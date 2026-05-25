@@ -48,7 +48,7 @@
    cp mailpit/.env.example mailpit/.env
    ```
 
-5. Перед публичным запуском Redis и Mailpit замените примерные секреты и домены в `redis/.env` и `mailpit/.env`: задайте реальный `REDIS_PASSWORD`, публичные `REDIS_UI_HOST` и `MAILPIT_HOST`, а также новые Basic Auth hashes в `REDIS_UI_BASIC_AUTH_USERS` и `MAILPIT_UI_BASIC_AUTH_USERS`. Значения из `.env.example`, включая примерные hashes, годятся только для чтения глазами, а не для `make up-redis` или `make up-mailpit`.
+5. Перед публичным запуском Redis и Mailpit замените примерные секреты и домены в `redis/.env` и `mailpit/.env`: задайте реальный `REDIS_PASSWORD`, `REDIS_UI_ENCRYPTION_KEY`, публичные `REDIS_UI_HOST` и `MAILPIT_HOST`, а также новые Basic Auth hashes в `REDIS_UI_BASIC_AUTH_USERS` и `MAILPIT_UI_BASIC_AUTH_USERS`. Значения из `.env.example`, включая примерные hashes, годятся только для чтения глазами, а не для `make up-redis` или `make up-mailpit`.
 
 6. Если нужен приватный Registry, создайте `htpasswd` файл, например:
 
