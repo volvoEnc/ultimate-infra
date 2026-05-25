@@ -49,4 +49,6 @@ Next steps:
   7. Start n8n if needed: make up-n8n
   8. Start ClickHouse if needed: make up-clickhouse
   9. Start Kafka if needed: make up-kafka
+  10. Start Redis if needed: make up-redis
+  11. Start Mailpit if needed: make up-mailpit
 EOF

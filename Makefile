@@ -5,7 +5,7 @@ SHELL := /usr/bin/env bash
 APP ?=
 ENV ?=
 
-.PHONY: help up-gateway up-postgres up-registry up-observability up-admin up-uptime up-centrifugo up-n8n up-clickhouse up-kafka import-n8n-workflows check-telegram-elevenlabs-workflow deploy logs status init-server
+.PHONY: help up-gateway up-postgres up-registry up-observability up-admin up-uptime up-centrifugo up-n8n up-clickhouse up-kafka up-redis up-mailpit import-n8n-workflows check-telegram-elevenlabs-workflow deploy logs status init-server
 
 help:
 	@printf '%s\n' \
@@ -20,6 +20,8 @@ help:
 	  '  make up-n8n' \
 	  '  make up-clickhouse' \
 	  '  make up-kafka' \
+	  '  make up-redis' \
+	  '  make up-mailpit' \
 	  '  make import-n8n-workflows' \
 	  '  make check-telegram-elevenlabs-workflow' \
 	  '  make deploy APP=app1 ENV=prod' \
@@ -75,6 +77,16 @@ up-kafka:
 	./scripts/create-network.sh proxy
 	./scripts/create-network.sh data
 	cd kafka && docker compose --env-file .env up -d --remove-orphans
+
+up-redis:
+	./scripts/create-network.sh proxy
+	./scripts/create-network.sh data
+	cd redis && docker compose --env-file .env up -d --remove-orphans
+
+up-mailpit:
+	./scripts/create-network.sh proxy
+	./scripts/create-network.sh data
+	cd mailpit && docker compose --env-file .env up -d --remove-orphans
 
 import-n8n-workflows:
 	./scripts/import-n8n-workflows.sh
