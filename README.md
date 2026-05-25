@@ -48,7 +48,9 @@
    cp mailpit/.env.example mailpit/.env
    ```
 
-5. Если нужен приватный Registry, создайте `htpasswd` файл, например:
+5. Перед публичным запуском Redis и Mailpit замените примерные секреты и домены в `redis/.env` и `mailpit/.env`: задайте реальный `REDIS_PASSWORD`, публичные `REDIS_UI_HOST` и `MAILPIT_HOST`, а также новые Basic Auth hashes в `REDIS_UI_BASIC_AUTH_USERS` и `MAILPIT_UI_BASIC_AUTH_USERS`. Значения из `.env.example`, включая примерные hashes, годятся только для чтения глазами, а не для `make up-redis` или `make up-mailpit`.
+
+6. Если нужен приватный Registry, создайте `htpasswd` файл, например:
 
    ```bash
    mkdir -p env/prod
@@ -56,8 +58,8 @@
    chmod 600 env/prod/registry.htpasswd
    ```
 
-6. Заполните реальные env-файлы приложений в `env/prod` и `env/stage`.
-7. Если нужен n8n, перед запуском `make up-n8n` создайте отдельную PostgreSQL базу и пользователя:
+7. Заполните реальные env-файлы приложений в `env/prod` и `env/stage`.
+8. Если нужен n8n, перед запуском `make up-n8n` создайте отдельную PostgreSQL базу и пользователя:
 
    ```bash
    make up-postgres
@@ -66,7 +68,7 @@
 
    Затем перенесите выведенные значения БД в `n8n/.env`: `DB_POSTGRESDB_DATABASE`, `DB_POSTGRESDB_USER` и `DB_POSTGRESDB_PASSWORD`.
 
-8. Поднимите gateway и наблюдаемость:
+9. Поднимите gateway и наблюдаемость:
 
    ```bash
    make up-gateway
@@ -97,7 +99,7 @@
    После `make up-mailpit` Mailpit UI будет доступен по `https://<MAILPIT_HOST>/`.
    Коммитнутые n8n workflows импортируются одной командой: `make import-n8n-workflows`.
 
-9. Скопируйте шаблон приложения:
+10. Скопируйте шаблон приложения:
 
    ```bash
    cp -R deployments/app-template deployments/app1-prod
