@@ -24,8 +24,10 @@ Set production values in `redis/.env`:
 Generate Basic Auth with:
 
 ```bash
-docker run --rm --entrypoint htpasswd httpd:2 -Bbn admin 'strong-password'
+docker run --rm --entrypoint htpasswd httpd:2 -Bbn admin 'strong-password' | sed 's/\$/$$/g'
 ```
+
+Use `$$` instead of `$` in `.env` values because Docker Compose interpolates dollar signs.
 
 Generate `REDIS_UI_ENCRYPTION_KEY` with:
 
