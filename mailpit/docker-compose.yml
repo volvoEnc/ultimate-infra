@@ -1,0 +1,55 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  mailpit:
+    image: axllent/mailpit:${MAILPIT_VERSION}
+    container_name: infra-mailpit
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ}
+      MP_DATABASE: /data/mailpit.db
+      MP_MAX_MESSAGES: ${MAILPIT_MAX_MESSAGES}
+      MP_DISABLE_VERSION_CHECK: "true"
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - mailpit-data:/data
+    networks:
+      data:
+        aliases:
+          - infra-mailpit
+          - mailpit
+      proxy:
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${PROXY_NETWORK}
+      - traefik.http.routers.mailpit.rule=Host(`${MAILPIT_HOST}`)
+      - traefik.http.routers.mailpit.entrypoints=websecure
+      - traefik.http.routers.mailpit.tls=true
+      - traefik.http.routers.mailpit.tls.certresolver=letsencrypt
+      - traefik.http.routers.mailpit.middlewares=default-chain@file,mailpit-auth@docker
+      - traefik.http.services.mailpit.loadbalancer.server.port=8025
+      - traefik.http.middlewares.mailpit-auth.basicauth.users=${MAILPIT_UI_BASIC_AUTH_USERS}
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8025/readyz || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging: *default-logging
+
+volumes:
+  mailpit-data:
+    name: mailpit-data
+
+networks:
+  data:
+    external: true
+    name: ${DATA_NETWORK}
+  proxy:
+    external: true
+    name: ${PROXY_NETWORK}
