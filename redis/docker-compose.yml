@@ -61,7 +61,7 @@ services:
       - traefik.http.routers.redis-ui.entrypoints=websecure
       - traefik.http.routers.redis-ui.tls=true
       - traefik.http.routers.redis-ui.tls.certresolver=letsencrypt
-      - traefik.http.routers.redis-ui.middlewares=default-chain@file,redis-ui-auth@docker
+      - traefik.http.routers.redis-ui.middlewares=ui-chain@file,redis-ui-auth@docker
       - traefik.http.services.redis-ui.loadbalancer.server.port=5540
       - traefik.http.middlewares.redis-ui-auth.basicauth.users=${REDIS_UI_BASIC_AUTH_USERS}
     healthcheck:

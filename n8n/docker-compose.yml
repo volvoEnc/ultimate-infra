@@ -53,7 +53,15 @@ services:
       - traefik.http.routers.n8n.entrypoints=websecure
       - traefik.http.routers.n8n.tls=true
       - traefik.http.routers.n8n.tls.certresolver=letsencrypt
-      - traefik.http.routers.n8n.middlewares=default-chain@file
+      - traefik.http.routers.n8n.middlewares=ui-chain@file
+      - traefik.http.routers.n8n.priority=10
+      - traefik.http.routers.n8n-webhook.rule=Host(`${N8N_HOST}`) && (PathPrefix(`/webhook`) || PathPrefix(`/webhook-test`))
+      - traefik.http.routers.n8n-webhook.entrypoints=websecure
+      - traefik.http.routers.n8n-webhook.tls=true
+      - traefik.http.routers.n8n-webhook.tls.certresolver=letsencrypt
+      - traefik.http.routers.n8n-webhook.middlewares=default-chain@file
+      - traefik.http.routers.n8n-webhook.priority=100
+      - traefik.http.routers.n8n-webhook.service=n8n
       - traefik.http.services.n8n.loadbalancer.server.port=${N8N_PORT}
     logging: *default-logging
 

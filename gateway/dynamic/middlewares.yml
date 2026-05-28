@@ -18,6 +18,11 @@ http:
         average: 100
         burst: 50
         period: 1s
+    ui-rate-limit:
+      rateLimit:
+        average: 600
+        burst: 300
+        period: 1s
     admin-whitelist:
       ipAllowList:
         sourceRange:
@@ -31,6 +36,12 @@ http:
           - security-headers
           - compression
           - default-rate-limit
+    ui-chain:
+      chain:
+        middlewares:
+          - security-headers
+          - compression
+          - ui-rate-limit
     dashboard-chain:
       chain:
         middlewares:
