@@ -66,6 +66,18 @@ docker tag my-app:1.0.0 registry.example.com/my-app:1.0.0
 docker push registry.example.com/my-app:1.0.0
 ```
 
+## Большие push
+
+Registry доступен через Traefik, поэтому долгие upload-запросы зависят от gateway timeout. В `gateway/docker-compose.yml` для `web` и `websecure` выставлен `readTimeout=10m`, чтобы push больших слоёв не падал на дефолтных 60 секундах Traefik.
+
+Если CI падает примерно через минуту с `499 Client Closed Request` на `PUT /v2/.../blobs/uploads/...`, это обычно не лимит размера registry, а таймаут чтения request body на gateway. После изменения timeout перезапустите gateway:
+
+```bash
+make up-gateway
+```
+
+Если слой всё ещё загружается дольше 10 минут, лучше сначала уменьшить образ. Бесконечный timeout — это не DevOps, а публичное письмо шантажистам: "держите соединение сколько хотите".
+
 Пул:
 
 ```bash

@@ -20,9 +20,11 @@ services:
       - --ping=true
       - --ping.entrypoint=metrics
       - --entrypoints.web.address=:80
+      - --entrypoints.web.transport.respondingTimeouts.readTimeout=10m
       - --entrypoints.web.http.redirections.entrypoint.to=websecure
       - --entrypoints.web.http.redirections.entrypoint.scheme=https
       - --entrypoints.websecure.address=:443
+      - --entrypoints.websecure.transport.respondingTimeouts.readTimeout=10m
       - --entrypoints.websecure.http.tls.certresolver=letsencrypt
       - --entrypoints.websecure.http.tls.options=default
       - --entrypoints.metrics.address=:8082
