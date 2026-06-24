@@ -5,7 +5,7 @@ SHELL := /usr/bin/env bash
 APP ?=
 ENV ?=
 
-.PHONY: help up-gateway up-postgres up-registry up-observability up-admin up-uptime up-centrifugo up-n8n up-clickhouse up-kafka up-redis up-mailpit import-n8n-workflows check-telegram-elevenlabs-workflow deploy logs status init-server
+.PHONY: help up-gateway up-postgres up-registry up-observability up-admin up-uptime up-centrifugo up-n8n up-clickhouse up-kafka up-redis up-mailpit up-authelia up-openclaw onboard-openclaw import-n8n-workflows check-telegram-elevenlabs-workflow deploy logs status init-server
 
 help:
 	@printf '%s\n' \
@@ -22,6 +22,9 @@ help:
 	  '  make up-kafka' \
 	  '  make up-redis' \
 	  '  make up-mailpit' \
+	  '  make up-authelia' \
+	  '  make up-openclaw' \
+	  '  make onboard-openclaw' \
 	  '  make import-n8n-workflows' \
 	  '  make check-telegram-elevenlabs-workflow' \
 	  '  make deploy APP=app1 ENV=prod' \
@@ -32,6 +35,7 @@ help:
 up-gateway:
 	./scripts/create-network.sh proxy
 	./scripts/create-network.sh data
+	./scripts/create-network.sh openclaw-edge
 	cd gateway && docker compose --env-file .env up -d
 
 up-postgres:
@@ -87,6 +91,19 @@ up-mailpit:
 	./scripts/create-network.sh proxy
 	./scripts/create-network.sh data
 	cd mailpit && docker compose --env-file .env up -d --remove-orphans
+
+up-authelia:
+	./scripts/create-network.sh proxy
+	./scripts/create-network.sh data
+	cd authelia && docker compose --env-file .env up -d --remove-orphans
+
+up-openclaw:
+	./scripts/create-network.sh openclaw-edge
+	cd openclaw && docker compose --env-file .env up -d --remove-orphans
+
+onboard-openclaw:
+	./scripts/create-network.sh openclaw-edge
+	cd openclaw && docker compose --env-file .env run --rm openclaw openclaw onboard
 
 import-n8n-workflows:
 	./scripts/import-n8n-workflows.sh

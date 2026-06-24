@@ -1,0 +1,56 @@
+{
+  // OpenClaw configuration (JSON5 — comments + trailing commas allowed).
+  // Mounted read-only; secrets are interpolated from container env at read time.
+  agents: {
+    defaults: {
+      model: {
+        // Claude via the reused subscription / Claude CLI OAuth profile (not metered API).
+        // The credential must be seeded ONCE into the openclaw-data volume — see
+        // openclaw/README.md ("make onboard-openclaw"). Without that one-time login the
+        // bot starts but every Claude call fails with an auth error.
+        primary: "anthropic/claude-sonnet-4-6",
+      },
+      // v1: the unprivileged, host-isolated container IS the jail; main runs in-process
+      // inside it. Escalation (sandbox.mode "all" + a profile-gated executor) is deferred.
+      sandbox: {
+        mode: "off",
+      },
+    },
+  },
+  channels: {
+    telegram: {
+      enabled: true,
+      // Long-poll by default → no public inbound webhook is exposed.
+      botToken: "${TELEGRAM_BOT_TOKEN}",
+      // Single-owner bot: recognize the owner directly by numeric Telegram user id,
+      // instead of the default "pairing" policy that would silently ignore your first
+      // messages until a pairing code is approved out-of-band.
+      dmPolicy: "allowlist",
+      allowFrom: ["${TELEGRAM_OWNER_ID}"],
+    },
+  },
+  gateway: {
+    // "lan" = bind 0.0.0.0 inside the container so Traefik (on openclaw-edge) reaches :18789.
+    bind: "lan",
+    port: 18789,
+    auth: {
+      // OpenClaw's own auth layer, behind Authelia (password+TOTP) and the dedicated
+      // openclaw-edge network.
+      mode: "token",
+      token: "${OPENCLAW_GATEWAY_TOKEN}",
+    },
+    tools: {
+      // Hard-disable the browser tool at the HTTP layer.
+      deny: ["browser"],
+    },
+  },
+  browser: {
+    // Belt-and-suspenders — browser binaries are not installed in the image anyway.
+    enabled: false,
+  },
+  // Runaway-loop / subscription-protection knobs. OpenClaw has NO per-task max-iterations;
+  // the subscription's own rate-limit is the real ceiling. Verify exact key nesting against
+  // docs.openclaw.ai/gateway/configuration-reference before enabling these:
+  // cron: { maxConcurrentRuns: 2, retry: { maxAttempts: 3 }, failureAlert: { enabled: true, after: 3 } },
+  // acp: { maxConcurrentSessions: 2, sessionIdleTtlMs: 600000 },
+}

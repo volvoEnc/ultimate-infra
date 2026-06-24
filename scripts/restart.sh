@@ -9,7 +9,7 @@ source "$SCRIPT_DIR/lib.sh"
 usage() {
   cat <<EOF
 Usage:
-  $0 <gateway|postgres|registry|observability|admin|uptime|centrifugo|n8n|clickhouse|kafka|redis|mailpit> [service]
+  $0 <gateway|postgres|registry|observability|admin|uptime|centrifugo|n8n|clickhouse|kafka|redis|mailpit|authelia|openclaw> [service]
   $0 <app> <env> [service]
 EOF
 }

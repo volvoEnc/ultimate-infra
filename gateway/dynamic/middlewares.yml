@@ -52,3 +52,22 @@ http:
         middlewares:
           - security-headers
           - admin-whitelist
+    # Tighter than ui-rate-limit (600/300): a chat UI is low-volume; this blunts
+    # brute-force / credential-stuffing against the auth layers.
+    openclaw-rate-limit:
+      rateLimit:
+        average: 20
+        burst: 10
+        period: 1s
+    # Reusable Authelia forward-auth (password + TOTP). Any admin UI can add
+    # `authelia@file` to its chain. CVE-2026-35051: requires Traefik >= v3.6.14.
+    authelia:
+      forwardAuth:
+        address: "http://infra-authelia:9091/api/authz/forward-auth"
+        trustForwardHeader: true
+        maxResponseBodySize: 8192
+        authResponseHeaders:
+          - Remote-User
+          - Remote-Groups
+          - Remote-Email
+          - Remote-Name

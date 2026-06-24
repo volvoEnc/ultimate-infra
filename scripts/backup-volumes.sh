@@ -10,7 +10,7 @@ usage() {
   cat <<EOF
 Usage:
   $0 <volume> [volume...]
-  $0 --stack <gateway|postgres|registry|observability|admin|uptime|centrifugo|n8n|clickhouse|kafka|redis|mailpit>
+  $0 --stack <gateway|postgres|registry|observability|admin|uptime|centrifugo|n8n|clickhouse|kafka|redis|mailpit|authelia|openclaw>
   $0 --stack <app> <env>
 EOF
 }
