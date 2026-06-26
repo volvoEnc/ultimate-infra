@@ -36,6 +36,8 @@ services:
       TELEGRAM_OWNER_ID: ${TELEGRAM_OWNER_ID}
       # Used by openclaw.json gateway.controlUi.allowedOrigins (non-loopback bind guard).
       OPENCLAW_HOST: ${OPENCLAW_HOST}
+      # Model (provider/model-id) used by openclaw.json. Override in openclaw/.env.
+      OPENCLAW_MODEL: ${OPENCLAW_MODEL:-openai/gpt-4o}
     security_opt:
       - no-new-privileges:true
     # v1 "chat in a jail": no host access (no docker.sock, no host binds, not privileged).

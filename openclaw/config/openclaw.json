@@ -4,11 +4,10 @@
   agents: {
     defaults: {
       model: {
-        // Claude via the reused subscription / Claude CLI OAuth profile (not metered API).
-        // The credential must be seeded ONCE into the openclaw-data volume — see
-        // openclaw/README.md ("make onboard-openclaw"). Without that one-time login the
-        // bot starts but every Claude call fails with an auth error.
-        primary: "anthropic/claude-sonnet-4-6",
+        // Deployment-configurable via OPENCLAW_MODEL (provider/model-id); default
+        // openai/gpt-4o is set in docker-compose. The provider credential (API key /
+        // token) is seeded once into the openclaw-data volume via `make onboard-openclaw`.
+        primary: "${OPENCLAW_MODEL}",
       },
       // v1: the unprivileged, host-isolated container IS the jail; main runs in-process
       // inside it. Escalation (sandbox.mode "all" + a profile-gated executor) is deferred.
