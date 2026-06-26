@@ -1,0 +1,92 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  # One-shot root init: a fresh named volume is created root-owned, but OpenClaw runs
+  # as uid 1000 (node) with cap_drop ALL, so it cannot self-chown. Fix ownership of the
+  # state volume before the main container starts. Idempotent (no-op on later boots).
+  openclaw-init:
+    image: ${OPENCLAW_IMAGE}
+    container_name: infra-openclaw-init
+    user: root
+    network_mode: none
+    entrypoint: ["sh", "-c", "chown node:node /home/node/.openclaw"]
+    restart: "no"
+    volumes:
+      - openclaw-data:/home/node/.openclaw
+    logging: *default-logging
+
+  openclaw:
+    image: ${OPENCLAW_IMAGE}
+    container_name: infra-openclaw
+    restart: unless-stopped
+    depends_on:
+      openclaw-init:
+        condition: service_completed_successfully
+    environment:
+      TZ: ${TZ}
+      # Config is a read-only, version-controlled file; secrets are interpolated
+      # from these env vars at read time (no secrets baked into the image/config).
+      OPENCLAW_CONFIG_PATH: /config/openclaw.json
+      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_OWNER_ID: ${TELEGRAM_OWNER_ID}
+    security_opt:
+      - no-new-privileges:true
+    # v1 "chat in a jail": no host access (no docker.sock, no host binds, not privileged).
+    cap_drop:
+      - ALL
+    # Optional extra hardening — enable after a deploy smoke-test. Node may need scratch
+    # paths; if the container logs EROFS on start, add tmpfs lines or drop read_only:
+    # read_only: true
+    # tmpfs:
+    #   - /tmp
+    #   - /home/node/.cache
+    #   - /home/node/.npm
+    # Resource ceilings so a runaway burst cannot OOM co-tenant DBs on the shared VDS.
+    mem_limit: 2g
+    cpus: "1.5"
+    pids_limit: 512
+    volumes:
+      - ./config/openclaw.json:/config/openclaw.json:ro
+      # Single writable state volume. The Claude OAuth token (auth-profiles.json) and all
+      # state live under ~/.openclaw — must stay writable for token refresh.
+      - openclaw-data:/home/node/.openclaw
+    networks:
+      - openclaw-edge
+    healthcheck:
+      # Liveness only: gateway.auth.mode is "token", so a bare GET / returns 401. We
+      # intentionally treat any completed HTTP response as alive (no r.ok check — unlike
+      # n8n/centrifugo, an authed gateway exposes no anonymous 200 endpoint).
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:18789/').then(()=>process.exit(0)).catch(()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=openclaw-edge
+      - traefik.http.routers.openclaw.rule=Host(`${OPENCLAW_HOST}`)
+      - traefik.http.routers.openclaw.entrypoints=websecure
+      - traefik.http.routers.openclaw.tls=true
+      - traefik.http.routers.openclaw.tls.certresolver=letsencrypt
+      # password+TOTP via Authelia portal (no Traefik basic-auth — would collide).
+      - traefik.http.routers.openclaw.middlewares=ui-chain@file,openclaw-rate-limit@file,authelia@file
+      - traefik.http.services.openclaw.loadbalancer.server.port=18789
+    logging: *default-logging
+
+volumes:
+  openclaw-data:
+    name: openclaw-data
+
+networks:
+  # Dedicated edge bridge shared ONLY by Traefik and OpenClaw. OpenClaw is NOT on the
+  # shared public `proxy` net (so no other co-tenant can reach :18789 directly and
+  # bypass Authelia) and NOT on `data` (cannot reach prod DBs). All auth flows through
+  # Traefik -> openclaw-rate-limit -> Authelia.
+  openclaw-edge:
+    external: true
+    name: openclaw-edge

@@ -3,6 +3,7 @@
 env/**/*.env
 env/**/*.htpasswd
 backups/
+authelia/config/users.yml
 n8n/workflows-exported/
 *.tar.gz
 *.tgz

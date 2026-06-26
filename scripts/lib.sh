@@ -6,7 +6,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 is_infra_stack() {
   local stack="$1"
-  [[ "$stack" == "gateway" || "$stack" == "postgres" || "$stack" == "registry" || "$stack" == "observability" || "$stack" == "admin" || "$stack" == "uptime" || "$stack" == "centrifugo" || "$stack" == "n8n" || "$stack" == "clickhouse" || "$stack" == "kafka" || "$stack" == "redis" || "$stack" == "mailpit" ]]
+  [[ "$stack" == "gateway" || "$stack" == "postgres" || "$stack" == "registry" || "$stack" == "observability" || "$stack" == "admin" || "$stack" == "uptime" || "$stack" == "centrifugo" || "$stack" == "n8n" || "$stack" == "clickhouse" || "$stack" == "kafka" || "$stack" == "redis" || "$stack" == "mailpit" || "$stack" == "authelia" || "$stack" == "openclaw" ]]
 }
 
 resolve_stack_dir() {

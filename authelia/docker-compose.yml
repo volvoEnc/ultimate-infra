@@ -1,0 +1,61 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  authelia:
+    image: ${AUTHELIA_IMAGE}
+    container_name: infra-authelia
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ}
+      # Secrets via Authelia's native AUTHELIA_* env overrides (no secrets in the
+      # committed config file). JWT key path is the 4.38+ location.
+      AUTHELIA_SESSION_SECRET: ${AUTHELIA_SESSION_SECRET}
+      AUTHELIA_STORAGE_ENCRYPTION_KEY: ${AUTHELIA_STORAGE_ENCRYPTION_KEY}
+      # Only consumed when password reset is enabled (it is disabled in configuration.yml),
+      # so this is currently inert — kept for one-line future enablement.
+      AUTHELIA_IDENTITY_VALIDATION_RESET_PASSWORD_JWT_SECRET: ${AUTHELIA_JWT_SECRET}
+      # Reuse the existing infra-redis (dedicated DB index 2 — DB 0 is taken by redis-ui).
+      AUTHELIA_SESSION_REDIS_PASSWORD: ${REDIS_PASSWORD}
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ./config/configuration.yml:/config/configuration.yml:ro
+      - ./config/users.yml:/config/users.yml:ro
+      - authelia-data:/data
+    networks:
+      # Authelia is trusted infra: it MAY touch `data` (to reach infra-redis).
+      # OpenClaw deliberately does NOT.
+      data:
+        aliases:
+          - infra-authelia
+          - authelia
+      proxy:
+        aliases:
+          - infra-authelia
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${PROXY_NETWORK}
+      - traefik.http.routers.authelia.rule=Host(`${AUTHELIA_HOST}`)
+      - traefik.http.routers.authelia.entrypoints=websecure
+      - traefik.http.routers.authelia.tls=true
+      - traefik.http.routers.authelia.tls.certresolver=letsencrypt
+      # The portal itself must NOT be behind forward-auth.
+      - traefik.http.routers.authelia.middlewares=ui-chain@file
+      - traefik.http.services.authelia.loadbalancer.server.port=9091
+    logging: *default-logging
+
+volumes:
+  authelia-data:
+    name: authelia-data
+
+networks:
+  data:
+    external: true
+    name: ${DATA_NETWORK}
+  proxy:
+    external: true
+    name: ${PROXY_NETWORK}

@@ -6,7 +6,7 @@ x-logging: &default-logging
 
 services:
   traefik:
-    image: traefik:v3.6.6
+    image: traefik:v3.6.14
     container_name: infra-traefik
     restart: unless-stopped
     command:
@@ -53,6 +53,7 @@ services:
       - letsencrypt:/letsencrypt
     networks:
       - proxy
+      - openclaw-edge
     labels:
       - traefik.enable=true
       - traefik.docker.network=${PROXY_NETWORK}
@@ -75,3 +76,8 @@ networks:
   proxy:
     external: true
     name: ${PROXY_NETWORK}
+  # Dedicated edge bridge so Traefik can reach OpenClaw without putting it on the
+  # shared public `proxy` network. Shared only by Traefik and infra-openclaw.
+  openclaw-edge:
+    external: true
+    name: openclaw-edge
