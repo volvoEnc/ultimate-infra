@@ -34,6 +34,8 @@ services:
       OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       TELEGRAM_OWNER_ID: ${TELEGRAM_OWNER_ID}
+      # Used by openclaw.json gateway.controlUi.allowedOrigins (non-loopback bind guard).
+      OPENCLAW_HOST: ${OPENCLAW_HOST}
     security_opt:
       - no-new-privileges:true
     # v1 "chat in a jail": no host access (no docker.sock, no host binds, not privileged).

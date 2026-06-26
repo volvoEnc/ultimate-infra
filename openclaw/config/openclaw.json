@@ -33,6 +33,12 @@
     // "lan" = bind 0.0.0.0 inside the container so Traefik (on openclaw-edge) reaches :18789.
     bind: "lan",
     port: 18789,
+    controlUi: {
+      // REQUIRED for a non-loopback bind (verified at runtime — this is Codex's P1):
+      // the gateway refuses to start unless the browser origin (the Traefik host) is
+      // explicitly allowlisted. ${OPENCLAW_HOST} is injected via the compose env block.
+      allowedOrigins: ["https://${OPENCLAW_HOST}"],
+    },
     auth: {
       // OpenClaw's own auth layer, behind Authelia (password+TOTP) and the dedicated
       // openclaw-edge network.
