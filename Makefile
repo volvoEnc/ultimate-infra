@@ -103,7 +103,7 @@ up-openclaw:
 
 onboard-openclaw:
 	./scripts/create-network.sh openclaw-edge
-	cd openclaw && docker compose --env-file .env run --rm openclaw openclaw onboard
+	cd openclaw && docker compose --env-file .env run --rm openclaw node openclaw.mjs onboard
 
 import-n8n-workflows:
 	./scripts/import-n8n-workflows.sh

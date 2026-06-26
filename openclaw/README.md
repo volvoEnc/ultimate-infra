@@ -36,6 +36,8 @@ then the bot starts but every Claude call fails with an auth error.
 
 ```bash
 make onboard-openclaw     # interactive: choose the Anthropic setup-token / paste-token flow
+# (runs: docker compose run --rm openclaw node openclaw.mjs onboard — the image has no
+#  global `openclaw` binary; the CLI is invoked via `node openclaw.mjs`.)
 ```
 
 Claude-CLI reuse will not work here (no host `~/.claude` is mounted) — use the
