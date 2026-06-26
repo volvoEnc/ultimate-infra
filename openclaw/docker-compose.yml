@@ -31,13 +31,15 @@ services:
       # Config is a read-only, version-controlled file; secrets are interpolated
       # from these env vars at read time (no secrets baked into the image/config).
       OPENCLAW_CONFIG_PATH: /config/openclaw.json
-      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       TELEGRAM_OWNER_ID: ${TELEGRAM_OWNER_ID}
       # Used by openclaw.json gateway.controlUi.allowedOrigins (non-loopback bind guard).
       OPENCLAW_HOST: ${OPENCLAW_HOST}
       # Model (provider/model-id) used by openclaw.json. Override in openclaw/.env.
-      OPENCLAW_MODEL: ${OPENCLAW_MODEL:-openai/gpt-4o}
+      OPENCLAW_MODEL: ${OPENCLAW_MODEL:-openai/gpt-4.1}
+      # Trusted reverse-proxy source (openclaw.json gateway.trustedProxies). The dedicated
+      # openclaw-edge subnet — Traefik forwards Authelia's Remote-User from here.
+      OPENCLAW_TRUSTED_PROXIES: ${OPENCLAW_TRUSTED_PROXIES:-172.30.0.0/16}
     security_opt:
       - no-new-privileges:true
     # v1 "chat in a jail": no host access (no docker.sock, no host binds, not privileged).

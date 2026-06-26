@@ -32,6 +32,9 @@
     // "lan" = bind 0.0.0.0 inside the container so Traefik (on openclaw-edge) reaches :18789.
     bind: "lan",
     port: 18789,
+    // Trust Traefik on the dedicated openclaw-edge subnet (OPENCLAW_TRUSTED_PROXIES via
+    // the compose env). Lets the gateway accept the proxy-forwarded auth headers.
+    trustedProxies: ["${OPENCLAW_TRUSTED_PROXIES}"],
     controlUi: {
       // REQUIRED for a non-loopback bind (verified at runtime — this is Codex's P1):
       // the gateway refuses to start unless the browser origin (the Traefik host) is
@@ -39,10 +42,13 @@
       allowedOrigins: ["https://${OPENCLAW_HOST}"],
     },
     auth: {
-      // OpenClaw's own auth layer, behind Authelia (password+TOTP) and the dedicated
-      // openclaw-edge network.
-      mode: "token",
-      token: "${OPENCLAW_GATEWAY_TOKEN}",
+      // Delegate auth to the trusted reverse proxy (Traefik on openclaw-edge); the gateway
+      // reads the authenticated user from the Remote-User header Authelia forwards. No
+      // separate gateway token needed — Authelia (password+TOTP) gates the UI.
+      mode: "trusted-proxy",
+      trustedProxy: {
+        userHeader: "Remote-User",
+      },
     },
     tools: {
       // Hard-disable the browser tool at the HTTP layer.
