@@ -1,0 +1,37 @@
+[mcp_servers.freelance_ledger]
+url = "https://freelance.danilka.tech/mcp/freelance-ledger"
+bearer_token_env_var = "FREELANCE_LEDGER_MCP_TOKEN"
+required = true
+startup_timeout_sec = 20
+tool_timeout_sec = 60
+enabled_tools = [
+    "ledger-overview",
+    "client-summary",
+    "create-client",
+    "create-period",
+    "create-task",
+    "add-work-log",
+    "schedule-payment",
+    "mark-payment-received",
+]
+default_tools_approval_mode = "writes"
+
+[mcp_servers.freelance_ledger_stdio]
+command = "sh"
+args = ["scripts/freelance-ledger"]
+cwd = ".."
+enabled = false
+required = false
+startup_timeout_sec = 20
+tool_timeout_sec = 60
+enabled_tools = [
+    "ledger-overview",
+    "client-summary",
+    "create-client",
+    "create-period",
+    "create-task",
+    "add-work-log",
+    "schedule-payment",
+    "mark-payment-received",
+]
+default_tools_approval_mode = "writes"

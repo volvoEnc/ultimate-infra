@@ -1,0 +1,10 @@
+interface:
+  display_name: "Freelance Ledger"
+  short_description: "Safely add and verify freelance billing data"
+  default_prompt: "Use $freelance-ledger to safely record and verify freelance billing data."
+
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "freelance_ledger"
+      description: "Owner-only Freelance Ledger MCP server"
