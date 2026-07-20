@@ -10,6 +10,11 @@ Server-only files:
 - `../../env/prod/freelance.env` — Laravel, owner, and DB-user secrets (mode 600);
 - `../../env/prod/freelance-mysql.env` — MySQL bootstrap and root secrets (mode 600).
 
+Owner database sessions are encrypted explicitly by the stack. Client Jira,
+Git links and private documents use Laravel encrypted casts, so every backup
+must preserve the current `APP_KEY`. During key rotation keep the old key in
+`APP_PREVIOUS_KEYS` until the encrypted workspace has been re-encrypted.
+
 Deploy and verify from the infra root:
 
 ```bash
@@ -40,4 +45,7 @@ docker compose --env-file deployments/freelance-prod/.env \
 ```
 
 Rollback: restore the previous `APP_IMAGE` and `WEB_IMAGE` tags in `.env`, then
-run the deploy script again. Database rollback is deliberately separate.
+run the deploy script again. New workspace tables are additive, so an older
+image safely ignores them; database rollback is deliberately separate. Before
+deploy, preserve both a consistent MySQL dump and the server-only env/stack
+configuration with mode `0600`.
