@@ -1,0 +1,69 @@
+#!/usr/bin/env sh
+
+set -eu
+
+usage() {
+    echo "Usage: scripts/freelance-ledger [--check]" >&2
+}
+
+if [ "$#" -gt 1 ]; then
+    usage
+    exit 64
+fi
+
+check_only=0
+if [ "$#" -eq 1 ]; then
+    if [ "$1" != "--check" ]; then
+        usage
+        exit 64
+    fi
+
+    check_only=1
+fi
+
+container=${FREELANCE_LEDGER_CONTAINER:-freelance-prod-app}
+container_status=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$container" 2>/dev/null) || {
+    echo "Freelance Ledger container '$container' is unavailable." >&2
+    exit 69
+}
+
+if [ "$container_status" != "healthy" ] && [ "$container_status" != "running" ]; then
+    echo "Freelance Ledger container '$container' is not ready: $container_status." >&2
+    exit 69
+fi
+
+run_in_app() {
+    docker exec -i "$container" "$@"
+}
+
+if [ "$check_only" -eq 1 ]; then
+    migration_status=$(run_in_app php artisan migrate:status --pending --no-ansi 2>&1) || {
+        echo "Unable to inspect Freelance Ledger migrations." >&2
+        echo "$migration_status" >&2
+        exit 69
+    }
+
+    if ! echo "$migration_status" | grep -q 'No pending migrations'; then
+        echo "Freelance Ledger has pending migrations; deploy them before using MCP." >&2
+        echo "$migration_status" >&2
+        exit 69
+    fi
+
+    initialize_request='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"freelance-ledger-check","version":"1.0"}}}'
+    mcp_probe=$(printf '%s\n' "$initialize_request" | run_in_app php artisan mcp:start freelance-ledger 2>&1) || {
+        echo "Freelance Ledger MCP server failed to initialize." >&2
+        echo "$mcp_probe" >&2
+        exit 69
+    }
+
+    if ! echo "$mcp_probe" | grep -q '"name":"Freelance Ledger"'; then
+        echo "Freelance Ledger MCP server returned an unexpected initialize response." >&2
+        echo "$mcp_probe" >&2
+        exit 69
+    fi
+
+    echo "Freelance Ledger MCP prerequisite check passed for container: $container." >&2
+    exit 0
+fi
+
+exec docker exec -i "$container" php artisan mcp:start freelance-ledger

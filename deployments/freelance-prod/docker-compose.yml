@@ -1,0 +1,95 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+x-service-defaults: &service-defaults
+  restart: unless-stopped
+  logging: *default-logging
+
+services:
+  app:
+    <<: *service-defaults
+    image: ${APP_IMAGE}
+    container_name: ${APP_NAME}-${APP_ENV}-app
+    env_file:
+      - ${APP_ENV_FILE}
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      LOG_CHANNEL: stderr
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      SESSION_DRIVER: database
+      CACHE_STORE: database
+      QUEUE_CONNECTION: database
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "php-fpm", "-t"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    mem_limit: 512m
+
+  web:
+    <<: *service-defaults
+    image: ${WEB_IMAGE}
+    container_name: ${APP_NAME}-${APP_ENV}-web
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - backend
+      - proxy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:${APP_PORT}${APP_HEALTHCHECK_PATH}"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${PROXY_NETWORK}
+      - traefik.http.routers.${APP_NAME}-${APP_ENV}.rule=Host(`${APP_HOST}`)
+      - traefik.http.routers.${APP_NAME}-${APP_ENV}.entrypoints=websecure
+      - traefik.http.routers.${APP_NAME}-${APP_ENV}.tls=true
+      - traefik.http.routers.${APP_NAME}-${APP_ENV}.tls.certresolver=letsencrypt
+      - traefik.http.routers.${APP_NAME}-${APP_ENV}.middlewares=default-chain@file
+      - traefik.http.services.${APP_NAME}-${APP_ENV}.loadbalancer.server.port=${APP_PORT}
+    mem_limit: 128m
+
+  mysql:
+    <<: *service-defaults
+    image: ${MYSQL_IMAGE}
+    container_name: ${APP_NAME}-${APP_ENV}-mysql
+    env_file:
+      - ${MYSQL_ENV_FILE}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    mem_limit: 1g
+
+volumes:
+  mysql-data:
+    name: ${APP_NAME}-${APP_ENV}-mysql-data
+
+networks:
+  backend:
+    name: ${APP_NAME}-${APP_ENV}-backend
+  proxy:
+    external: true
+    name: ${PROXY_NETWORK}

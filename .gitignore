@@ -2,6 +2,8 @@
 **/.env
 env/**/*.env
 env/**/*.htpasswd
+env/**/*.credentials
+env/**/*.password
 backups/
 authelia/config/users.yml
 n8n/workflows-exported/
