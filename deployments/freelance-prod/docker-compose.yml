@@ -23,6 +23,7 @@ services:
       DB_HOST: mysql
       DB_PORT: 3306
       SESSION_DRIVER: database
+      SESSION_ENCRYPT: "true"
       CACHE_STORE: database
       QUEUE_CONNECTION: database
     depends_on:
