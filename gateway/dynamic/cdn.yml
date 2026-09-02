@@ -1,0 +1,20 @@
+# Decoy host for the VPN endpoint on the second public IP.
+# cdn.danilka.tech must have an A record pointing at that IP; Traefik issues a
+# real Let's Encrypt certificate for it and redirects visitors to the main site.
+http:
+  routers:
+    cdn-decoy:
+      rule: Host(`cdn.danilka.tech`)
+      entryPoints:
+        - websecure
+      service: noop@internal
+      middlewares:
+        - cdn-decoy-redirect
+      tls:
+        certResolver: letsencrypt
+  middlewares:
+    cdn-decoy-redirect:
+      redirectRegex:
+        regex: "^https://cdn\\.danilka\\.tech/(.*)"
+        replacement: "https://danilka.tech/${1}"
+        permanent: false
