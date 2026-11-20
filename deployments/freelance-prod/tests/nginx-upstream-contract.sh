@@ -46,4 +46,10 @@ printf '%s\n' "$configured" \
     | grep -Eq 'target: /etc/nginx/conf\.d/default\.conf' \
     || fail 'web must bind-mount nginx/default.conf over /etc/nginx/conf.d/default.conf'
 
+# The web image's own config (freelance-ledger >= ad24e53) reaches FPM by this alias.
+printf '%s\n' "$configured" \
+    | awk '/^  app:$/ { in_app = 1; next } /^  [^ ]/ { in_app = 0 } in_app' \
+    | grep -Eq '^ +- freelance-fpm$' \
+    || fail 'app must carry the freelance-fpm network alias the web image relies on'
+
 printf '%s\n' 'Freelance nginx upstream contract passed.'
