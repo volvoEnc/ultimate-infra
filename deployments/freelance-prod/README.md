@@ -15,6 +15,21 @@ Git links and private documents use Laravel encrypted casts, so every backup
 must preserve the current `APP_KEY`. During key rotation keep the old key in
 `APP_PREVIOUS_KEYS` until the encrypted workspace has been re-encrypted.
 
+## Nginx upstream override
+
+`nginx/default.conf` is bind-mounted over the config baked into the web image.
+The image ships `fastcgi_pass app:9000`, but `web` is attached to the shared
+`proxy` network as well, where other stacks run their own `app` service. After
+a host reboot dockerd starts containers in no particular order: if `web` came
+up before `app`, Docker DNS answered `app` with another stack's container,
+nginx cached that IP, `/up` returned 502, Traefik dropped the unhealthy
+container and the site served 404. The override addresses FPM by the unique
+container name `freelance-prod-app` and resolves it per request through Docker
+DNS (`resolver 127.0.0.11 valid=10s`), so start order and `app` recreation no
+longer matter. Keep it in sync with `docker/prod/nginx.conf` of the app repo;
+drop the mount once the image ships the same upstream. After editing the file,
+restart `web` (a single-file bind mount keeps the old inode until then).
+
 Deploy and verify from the infra root:
 
 ```bash
