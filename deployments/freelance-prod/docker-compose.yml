@@ -30,7 +30,11 @@ services:
       mysql:
         condition: service_healthy
     networks:
-      - backend
+      backend:
+        aliases:
+          # Upstream of the web image's own nginx config (freelance-ledger
+          # docker/prod/nginx.conf); see README "Nginx upstream override".
+          - freelance-fpm
     healthcheck:
       test: ["CMD", "php-fpm", "-t"]
       interval: 30s

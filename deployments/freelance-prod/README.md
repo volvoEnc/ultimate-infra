@@ -26,9 +26,16 @@ nginx cached that IP, `/up` returned 502, Traefik dropped the unhealthy
 container and the site served 404. The override addresses FPM by the unique
 container name `freelance-prod-app` and resolves it per request through Docker
 DNS (`resolver 127.0.0.11 valid=10s`), so start order and `app` recreation no
-longer matter. Keep it in sync with `docker/prod/nginx.conf` of the app repo;
-drop the mount once the image ships the same upstream. After editing the file,
-restart `web` (a single-file bind mount keeps the old inode until then).
+longer matter. After editing the file, restart `web` (a single-file bind mount
+keeps the old inode until then).
+
+The app repo ships the same fix in the image since freelance-ledger `main`
+`ad24e53`: its nginx reaches FPM by the network alias `freelance-fpm` (not the
+container name, which differs in the app repo's own `compose.prod.yaml`),
+resolved per request. `app` already carries that alias on `backend`, so once a
+web image built from `ad24e53` or later is deployed, the mount may be dropped
+on its own. Never remove the `freelance-fpm` alias while any web image relies
+on it: such a `web` answers 502.
 
 Deploy and verify from the infra root:
 
