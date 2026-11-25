@@ -14,7 +14,9 @@
 - volume `kafka-data`;
 - volumes `redis-data` и `redis-ui-data`;
 - volume `mailpit-data`;
-- volumes Grafana, Prometheus, Loki и Portainer.
+- volumes `observability-grafana-data`, `observability-prometheus-data`, `observability-loki-data` и `observability-promtail-positions`;
+- volume Portainer — `admin-portainer-data`;
+- volumes приложений — `<app>-<env>-…`, например `freelance-prod-mysql-data`.
 
 ## Как часто
 
@@ -41,8 +43,14 @@
 ./scripts/backup-volumes.sh --stack kafka
 ./scripts/backup-volumes.sh --stack redis
 ./scripts/backup-volumes.sh --stack mailpit
+./scripts/backup-volumes.sh --stack observability
+./scripts/backup-volumes.sh --stack admin
 ./scripts/backup-volumes.sh --stack app1 prod
 ```
+
+Как работает `--stack`: скрипт берёт настоящие имена томов из `docker compose config` (с учётом `name:`, имени проекта и `external`), поэтому нужен `.env` стека, а для приложения — существующие `env/<env>/*.env`: без них `docker compose config` падает и скрипт завершается с ненулевым кодом. Архив называется по настоящему имени тома: `backups/volumes/admin-portainer-data-<время>.tar.gz`. Скрипт никогда не создаёт пустой том: если тома нет (или `docker run` по нему упал), он пакует остальные тома, пишет в stderr `Volume backup incomplete, missing: …` (и `failed: …`) и завершается с кодом 1. То же верно для явных имён: `./scripts/backup-volumes.sh <volume>...`.
+
+Архивы `admin`, `gateway`, `observability` и приложений, сделанные старой версией скрипта, ненадёжны: они могли быть пустыми. Проверьте содержимое (раздел ниже).
 
 Резервная копия базы n8n в shared PostgreSQL:
 
