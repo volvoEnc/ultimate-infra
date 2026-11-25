@@ -138,7 +138,7 @@ Export current workflows for inspection:
 ./scripts/export-n8n-workflows.sh
 ```
 
-Exports go to `n8n/workflows-exported/`, which is ignored by git.
+Exports go to `n8n/workflows-exported/`, which is ignored by git. A new export replaces the previous one only when it is complete: if the export fails or returns no workflows, the previous export stays untouched and the script exits with an error.
 
 ## Backup
 
